@@ -1,30 +1,33 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  BarChart3,
+  LayoutDashboard,
   Users,
+  FileText,
   Send,
-  MessageSquareQuote,
+  MessageSquare,
+  BarChart2,
   Settings,
   LogOut,
-  MessageSquare,
+  Rocket,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { currentBrand, GrowthFlowLogo } from '../brands';
 import { cn } from '../lib/utils';
 
-// Exactly the 5 sections requested:
-// 1. Dashboard & Stats
-// 2. Customers Data
-// 3. Posts & Templates (Day-wise + History + Repeat)
-// 4. Replies (Reply to all or selected)
-// 5. Profile & Meta Connector
-const navItems = [
-  { to: '/dashboard', label: 'Dashboard & Stats', icon: BarChart3 },
-  { to: '/customers', label: 'Customers Data', icon: Users },
-  { to: '/posts', label: 'Posts & Templates', icon: Send },
-  { to: '/replies', label: 'Replies', icon: MessageSquareQuote },
-  { to: '/profile', label: 'Profile & Meta Connector', icon: Settings },
-];
+const iconMap: Record<string, React.ElementType> = {
+  Home: LayoutDashboard,
+  LayoutDashboard: LayoutDashboard,
+  BarChart3: LayoutDashboard,
+  Users: Users,
+  FileText: FileText,
+  Send: Send,
+  MessageSquare: MessageSquare,
+  MessageSquareQuote: MessageSquare,
+  BarChart2: BarChart2,
+  Settings: Settings,
+};
 
 export function Sidebar() {
   const { signOut, user, currentOrg } = useAuth();
@@ -35,52 +38,127 @@ export function Sidebar() {
     navigate('/login');
   };
 
+  const isGrowthFlow = currentBrand.id === 'growthflow';
+
   return (
-    <aside className="flex flex-col h-screen w-64 bg-[#075E54] text-white shrink-0 shadow-xl border-r border-[#064e46]">
+    <aside
+      className="flex flex-col h-screen w-64 shrink-0 shadow-2xl border-r transition-colors select-none"
+      style={{
+        backgroundColor: 'var(--sidebar-bg)',
+        borderColor: 'var(--sidebar-border)',
+        color: 'var(--sidebar-text)',
+      }}
+    >
       {/* Brand Header */}
-      <div className="flex items-center gap-3 px-5 py-5 border-b border-white/10 bg-[#064e46]">
-        <img
-          src="/logo.png"
-          alt="ReachFlow Logo"
-          className="w-10 h-10 rounded-xl object-cover shadow-md border border-white/20 bg-black/20"
-        />
-        <div>
-          <h2 className="font-extrabold text-sm tracking-wide">ReachFlow</h2>
-          <p className="text-[10px] text-emerald-300 font-bold uppercase tracking-wider truncate max-w-[140px]">
-            {currentOrg?.name || 'Business Platform'}
-          </p>
-        </div>
+      <div
+        className="flex items-center gap-3 px-5 py-5 border-b"
+        style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}
+      >
+        {isGrowthFlow ? (
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-white/10 p-1 flex items-center justify-center border border-white/20 shadow-sm shrink-0">
+              <img
+                src="/growthflow-logo.png"
+                alt="GrowthFlow Logo"
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            </div>
+            <div>
+              <div className="flex items-center">
+                <span className="font-extrabold text-base tracking-tight text-white">Growth</span>
+                <span className="font-extrabold text-base tracking-tight text-amber-400">Flow</span>
+              </div>
+              <p className="text-[10px] text-teal-300 font-medium truncate max-w-[130px]">
+                {currentBrand.tagline}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <img
+              src={currentBrand.logoSrc}
+              alt={currentBrand.name}
+              className="w-9 h-9 rounded-xl object-cover shadow-md border border-white/20 bg-black/20"
+            />
+            <div>
+              <h2 className="font-extrabold text-sm tracking-wide text-white">{currentBrand.name}</h2>
+              <p className="text-[10px] text-emerald-300 font-bold uppercase tracking-wider truncate max-w-[140px]">
+                {currentOrg?.name || 'Business Platform'}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Navigation (Only the 5 sections) */}
-      <nav className="flex-1 py-4 px-3 space-y-1.5 overflow-y-auto">
-        {navItems.map(({ to, label, icon: Icon }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) =>
-              cn(
-                'flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition-all',
+      {/* Navigation Links */}
+      <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+        {currentBrand.sidebarItems.map(({ to, label, icon }) => {
+          const Icon = iconMap[icon] || LayoutDashboard;
+          return (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all',
+                  isActive
+                    ? 'text-white font-bold shadow-sm'
+                    : 'text-white/70 hover:bg-white/10 hover:text-white'
+                )
+              }
+              style={({ isActive }) =>
                 isActive
-                  ? 'bg-white/20 text-white shadow-sm border border-white/20 font-bold'
-                  : 'text-white/80 hover:bg-white/10 hover:text-white'
-              )
-            }
-          >
-            <Icon size={18} className="shrink-0 text-emerald-300" />
-            <span className="truncate">{label}</span>
-          </NavLink>
-        ))}
+                  ? {
+                      backgroundColor: 'var(--sidebar-active-bg)',
+                      border: '1px solid rgba(255, 255, 255, 0.16)',
+                    }
+                  : {}
+              }
+            >
+              <Icon size={18} className="shrink-0 text-amber-400" />
+              <span className="truncate">{label}</span>
+            </NavLink>
+          );
+        })}
       </nav>
 
-      {/* User info & Sign out */}
-      <div className="px-4 py-4 border-t border-white/10 bg-[#064e46] space-y-2">
+      {/* GrowthFlow Pro Banner (from Mockup Design) */}
+      {isGrowthFlow && (
+        <div className="px-3 pb-3">
+          <div className="rounded-xl p-3 bg-gradient-to-br from-teal-800/80 to-teal-900/90 border border-teal-600/30 text-white shadow-inner">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="p-1 rounded-lg bg-amber-500/20 text-amber-400">
+                <Rocket size={14} />
+              </span>
+              <p className="text-xs font-bold leading-tight">Grow Faster</p>
+            </div>
+            <p className="text-[10px] text-teal-200/80 mb-2">
+              Scale messaging limits with GrowthFlow Pro.
+            </p>
+            <button
+              onClick={() => navigate('/profile')}
+              className="w-full text-center py-1.5 px-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-900 font-extrabold text-[11px] rounded-lg shadow-sm transition-all"
+            >
+              Upgrade Plan →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* User Info & Logout */}
+      <div
+        className="px-4 py-3.5 border-t"
+        style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}
+      >
         <div className="flex items-center justify-between">
           <div className="overflow-hidden">
             <p className="text-xs font-bold text-white truncate">
               {user?.full_name || user?.email?.split('@')[0] || 'User'}
             </p>
-            <p className="text-[10px] text-emerald-200/80 truncate">{user?.email}</p>
+            <p className="text-[10px] text-teal-200/70 truncate">{user?.email}</p>
           </div>
           <button
             onClick={handleSignOut}

@@ -3,6 +3,9 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import type { AuthUser } from '../lib/supabase';
 import type { Session } from '@supabase/supabase-js';
 import { api } from '../lib/api';
+import { currentBrand } from '../brands';
+
+const storagePrefix = `${currentBrand.id}-active-wa`;
 
 export interface Organization {
   id: string;
@@ -49,7 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [whatsAppStatus, setWhatsAppStatus] = useState<WhatsAppProfileStatus>(() => {
     try {
       const activeOrgId = localStorage.getItem('active-org-id');
-      const userKey = activeOrgId ? `reachflow-active-wa-${activeOrgId}` : 'reachflow-active-wa';
+      const userKey = activeOrgId ? `${storagePrefix}-${activeOrgId}` : storagePrefix;
       const saved = localStorage.getItem(userKey);
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -63,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshWhatsAppStatus = async (targetOrgId?: string) => {
     const orgId = targetOrgId || currentOrg?.id || localStorage.getItem('active-org-id');
-    const userKey = orgId ? `reachflow-active-wa-${orgId}` : 'reachflow-active-wa';
+    const userKey = orgId ? `${storagePrefix}-${orgId}` : storagePrefix;
 
     try {
       const res: any = await api.settings.getWhatsApp();
@@ -78,7 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
         setWhatsAppStatus(next);
         localStorage.setItem(userKey, JSON.stringify(next));
-        localStorage.setItem('reachflow-active-wa', JSON.stringify(next));
+        localStorage.setItem(storagePrefix, JSON.stringify(next));
         return;
       }
     } catch (err) {
@@ -93,7 +96,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const parsed = JSON.parse(saved);
           if (parsed && parsed.phoneNumberId) {
             setWhatsAppStatus(parsed);
-            localStorage.setItem('reachflow-active-wa', JSON.stringify(parsed));
+            localStorage.setItem(storagePrefix, JSON.stringify(parsed));
             return;
           }
         } catch {}
@@ -102,7 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Default: New client starts disconnected
     setWhatsAppStatus({ isConnected: false });
-    localStorage.removeItem('reachflow-active-wa');
+    localStorage.removeItem(storagePrefix);
   };
 
   const updateWhatsAppStatusLocally = (status: Partial<WhatsAppProfileStatus>) => {
@@ -110,9 +113,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const next = { ...prev, ...status };
       const orgId = currentOrg?.id || localStorage.getItem('active-org-id');
       if (orgId) {
-        localStorage.setItem(`reachflow-active-wa-${orgId}`, JSON.stringify(next));
+        localStorage.setItem(`${storagePrefix}-${orgId}`, JSON.stringify(next));
       }
-      localStorage.setItem('reachflow-active-wa', JSON.stringify(next));
+      localStorage.setItem(storagePrefix, JSON.stringify(next));
       return next;
     });
   };
@@ -285,7 +288,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setWhatsAppStatus({ isConnected: false });
     localStorage.removeItem('sb-token');
     localStorage.removeItem('active-org-id');
-    localStorage.removeItem('reachflow-active-wa');
+    localStorage.removeItem(storagePrefix);
   };
 
   const switchOrg = (orgId: string) => {

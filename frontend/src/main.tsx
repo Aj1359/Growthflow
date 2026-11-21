@@ -4,6 +4,10 @@ import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import './index.css';
+import { applyBrandTheme } from './brands';
+
+// Initialize and apply brand tokens, title, and favicon at boot
+applyBrandTheme();
 
 const queryClient = new QueryClient({
   defaultOptions: {

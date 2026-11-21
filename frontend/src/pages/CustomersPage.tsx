@@ -21,6 +21,8 @@ import {
   FileText,
 } from 'lucide-react';
 
+import { currentBrand } from '../brands';
+
 export default function CustomersPage() {
   const [contacts, setContacts] = useState<any[]>([]);
   const [search, setSearch] = useState('');
@@ -531,7 +533,7 @@ function ImportModal({ onClose, onImported }: { onClose: () => void; onImported:
     ];
     const ws = XLSX.utils.aoa_to_sheet(sampleData);
     XLSX.utils.book_append_sheet(wb, ws, 'Customers');
-    XLSX.writeFile(wb, 'ReachFlow_Customers_Sample.xlsx');
+    XLSX.writeFile(wb, `${currentBrand.name}_Customers_Sample.xlsx`);
   };
 
   const handleProcessImport = () => {

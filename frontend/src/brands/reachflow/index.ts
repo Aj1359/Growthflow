@@ -1,0 +1,37 @@
+import { BrandConfig } from '../types';
+
+export const reachflowBrand: BrandConfig = {
+  id: 'reachflow',
+  name: 'ReachFlow',
+  tagline: 'WhatsApp Business Platform',
+  pageTitle: 'ReachFlow - WhatsApp Business Platform',
+  favicon: '/favicon.png',
+  logoSrc: '/logo.png',
+  loginHeading: 'ReachFlow',
+  loginSubheading: 'Production WhatsApp Cloud API Broadcasting & Customer Care Platform',
+  sidebarItems: [
+    { to: '/dashboard', label: 'Dashboard & Stats', icon: 'BarChart3' },
+    { to: '/customers', label: 'Customers Data', icon: 'Users' },
+    { to: '/posts', label: 'Posts & Templates', icon: 'Send' },
+    { to: '/replies', label: 'Replies', icon: 'MessageSquareQuote' },
+    { to: '/profile', label: 'Profile & Meta Connector', icon: 'Settings' },
+  ],
+  tokens: {
+    primary: '#128C7E',
+    primaryHover: '#075E54',
+    accent: '#25D366',
+    bg: '#F9FAFB',
+    surface: '#FFFFFF',
+    text: '#111827',
+    muted: '#6B7280',
+    border: '#E5E7EB',
+    sidebarBg: '#075E54',
+    sidebarBorder: '#064e46',
+    sidebarActiveBg: 'rgba(255, 255, 255, 0.2)',
+    sidebarText: '#FFFFFF',
+    radius: '0.75rem',
+    shadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1)',
+    fontHeading: "'Inter', sans-serif",
+    fontBody: "'Inter', sans-serif",
+  },
+};

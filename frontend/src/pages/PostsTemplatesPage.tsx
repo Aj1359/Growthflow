@@ -79,13 +79,15 @@ interface BroadcastHistory {
   status: 'sent' | 'scheduled' | 'failed';
 }
 
+import { currentBrand } from '../brands';
+
 export default function PostsTemplatesPage() {
   const navigate = useNavigate();
 
   const [templates, setTemplates] = useState<MetaTemplate[]>([]);
   const [history, setHistory] = useState<BroadcastHistory[]>(() => {
     try {
-      const raw = localStorage.getItem('reachflow-broadcast-history');
+      const raw = localStorage.getItem(`${currentBrand.id}-broadcast-history`);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
@@ -96,7 +98,7 @@ export default function PostsTemplatesPage() {
             }
             return item;
           });
-          localStorage.setItem('reachflow-broadcast-history', JSON.stringify(normalized));
+          localStorage.setItem(`${currentBrand.id}-broadcast-history`, JSON.stringify(normalized));
           return normalized;
         }
       }
@@ -228,10 +230,10 @@ export default function PostsTemplatesPage() {
           </div>
           <div>
             <h3 className="text-xs font-bold text-emerald-950">
-              Create Templates in Meta &rarr; Connect Using Template Name in ReachFlow
+              Create Templates in Meta &rarr; Connect Using Template Name in {currentBrand.name}
             </h3>
             <p className="text-[11px] text-emerald-800">
-              Once you create and submit a template in <strong>Meta WhatsApp Manager</strong>, enter its approved <strong>Template Name</strong> (e.g. <code>summer_offer</code>) here. ReachFlow will dispatch it automatically to each customer via WhatsApp Cloud API.
+              Once you create and submit a template in <strong>Meta WhatsApp Manager</strong>, enter its approved <strong>Template Name</strong> (e.g. <code>summer_offer</code>) here. {currentBrand.name} will dispatch it automatically to each customer via WhatsApp Cloud API.
             </p>
           </div>
         </div>
@@ -486,7 +488,7 @@ export default function PostsTemplatesPage() {
             } as any;
             const updatedHistory = [newHistory, ...history];
             setHistory(updatedHistory);
-            localStorage.setItem('reachflow-broadcast-history', JSON.stringify(updatedHistory));
+            localStorage.setItem(`${currentBrand.id}-broadcast-history`, JSON.stringify(updatedHistory));
             if (summary.failed > 0 && summary.sent === 0) {
               showToast(`Send failed: ${summary.error || 'Meta template not approved yet'}`, 'error');
             } else {
@@ -647,7 +649,7 @@ function TestSendModal({
   onClose: () => void;
   onSent: (res: any) => void;
 }) {
-  const metaCreds = JSON.parse(localStorage.getItem('reachflow-active-wa') || '{}');
+  const metaCreds = JSON.parse(localStorage.getItem(`${currentBrand.id}-active-wa`) || '{}');
   const [phone, setPhone] = useState(metaCreds.displayPhone || '');
   const [customerName, setCustomerName] = useState(metaCreds.verifiedName || '');
   const [loading, setLoading] = useState(false);

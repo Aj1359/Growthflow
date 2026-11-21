@@ -14,6 +14,8 @@ import {
   User,
 } from 'lucide-react';
 
+import { currentBrand } from '../brands';
+
 export default function ProfileConnectorPage() {
   const { currentOrg, user, whatsAppStatus, updateWhatsAppStatusLocally } = useAuth();
 
@@ -42,10 +44,10 @@ export default function ProfileConnectorPage() {
         verifiedName: '',
         qualityRating: '',
       });
-      localStorage.removeItem('reachflow-active-wa');
+      localStorage.removeItem(`${currentBrand.id}-active-wa`);
       const orgId = currentOrg?.id || localStorage.getItem('active-org-id');
       if (orgId) {
-        localStorage.removeItem(`reachflow-active-wa-${orgId}`);
+        localStorage.removeItem(`${currentBrand.id}-active-wa-${orgId}`);
       }
     }
   };
