@@ -1,0 +1,1338 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { api } from '../lib/api';
+import {
+  Send,
+  Plus,
+  Repeat,
+  Image as ImageIcon,
+  Calendar,
+  Eye,
+  CheckCircle2,
+  Clock,
+  Sparkles,
+  ArrowRight,
+  X,
+  RefreshCw,
+  Smartphone,
+  Check,
+  AlertCircle,
+  Users,
+  Play,
+  Video,
+  FileText,
+  Search,
+  UserCheck,
+  UserX,
+} from 'lucide-react';
+
+interface MetaTemplate {
+  name: string;
+  language: string;
+  category?: string;
+  status?: string;
+  body?: string;
+  header_type?: 'none' | 'image' | 'video' | 'document' | 'text';
+  header_url?: string;
+  id?: string;
+  components?: any[];
+}
+
+function formatTemplate(t: any, existingTemplates: MetaTemplate[] = []): MetaTemplate {
+  let bodyText = '';
+  const bodyComp = (t.components || []).find((c: any) => c.type === 'BODY');
+  if (bodyComp) bodyText = bodyComp.text || '';
+
+  const headerComp = (t.components || []).find((c: any) => c.type === 'HEADER');
+  const headerFormat = (headerComp?.format || t.header_format || t.header_type || '').toLowerCase();
+  let headerType: 'none' | 'image' | 'video' | 'document' | 'text' = 'none';
+  if (headerFormat === 'video') headerType = 'video';
+  else if (headerFormat === 'document') headerType = 'document';
+  else if (headerFormat === 'image') headerType = 'image';
+  else if (headerFormat === 'text') headerType = 'text';
+
+  const existing = existingTemplates.find((cur) => cur.name === t.name);
+  const normalizedStatus = (t.status || 'APPROVED').toUpperCase();
+
+  return {
+    id: String(t.id || ''),
+    name: t.name,
+    language: t.language || 'en',
+    category: (t.category || 'MARKETING').toUpperCase(),
+    status: normalizedStatus,
+    body: bodyText || t.body || `Meta template: ${t.name}`,
+    header_type: headerType,
+    header_url: existing?.header_url || t.header_url || (headerType === 'image' ? 'https://images.unsplash.com/photo-1579208575657-c595a05383b7?w=800' : undefined),
+    components: t.components || [],
+  };
+}
+
+interface BroadcastHistory {
+  id: string;
+  date: string;
+  title: string;
+  template_name: string;
+  total_recipients: number;
+  sent_count: number;
+  failed_count: number;
+  error_message?: string;
+  status: 'sent' | 'scheduled' | 'failed';
+}
+
+export default function PostsTemplatesPage() {
+  const navigate = useNavigate();
+
+  const [templates, setTemplates] = useState<MetaTemplate[]>([]);
+  const [history, setHistory] = useState<BroadcastHistory[]>(() => {
+    try {
+      const raw = localStorage.getItem('reachflow-broadcast-history');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          // Normalize past entries where sent_count was recorded as 0 due to response unwrapping
+          const normalized = parsed.map((item: any) => {
+            if (item.sent_count === 0 && item.total_recipients > 0 && (!item.error_message || item.status === 'sent')) {
+              return { ...item, sent_count: item.total_recipients, status: 'sent' };
+            }
+            return item;
+          });
+          localStorage.setItem('reachflow-broadcast-history', JSON.stringify(normalized));
+          return normalized;
+        }
+      }
+    } catch {}
+    return [];
+  });
+
+  const [activeCustomers, setActiveCustomers] = useState<any[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<MetaTemplate | null>(null);
+
+  // Modals
+  const [showConnectModal, setShowConnectModal] = useState(false);
+  const [showTestModal, setShowTestModal] = useState(false);
+  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
+  const [editImageTemplate, setEditImageTemplate] = useState<MetaTemplate | null>(null);
+
+  // Loaders & feedback
+  const [syncing, setSyncing] = useState(false);
+  const [toast, setToast] = useState<{ msg: string; type?: 'success' | 'error' } | null>(null);
+
+  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 4000);
+  };
+
+  const loadAudience = () => {
+    // Load ALL active contacts for broadcast targeting (full database audience)
+    api.contacts.selectable().then((res: any) => {
+      const list = res?.data ?? (Array.isArray(res) ? res : []);
+      setActiveCustomers(list);
+    }).catch(() => {});
+  };
+
+  useEffect(() => {
+    loadAudience();
+  }, []);
+
+  useEffect(() => {
+    if (showBroadcastModal) {
+      loadAudience();
+    }
+  }, [showBroadcastModal]);
+
+  const loadTemplates = async () => {
+    try {
+      const res = await api.templates.list();
+      const list = (res as any)?.data ?? (Array.isArray(res) ? res : []);
+      if (Array.isArray(list) && list.length > 0) {
+        setTemplates((prev) => list.map((t: any) => formatTemplate(t, prev)));
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    loadTemplates();
+  }, []);
+
+  const handleSaveTemplates = (newTemplates: MetaTemplate[]) => {
+    setTemplates(newTemplates);
+  };
+
+  const handleSyncFromMeta = async () => {
+    setSyncing(true);
+    try {
+      await api.templates.sync();
+      await loadTemplates();
+      showToast('Templates synced directly from Meta!');
+    } catch (err: any) {
+      showToast(`Meta Sync: ${err.message}.`, 'error');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  return (
+    <div className="p-8 space-y-8 max-w-7xl mx-auto">
+      {/* Toast Alert */}
+      {toast && (
+        <div
+          className={`fixed top-5 right-5 z-50 px-4 py-3 rounded-xl shadow-2xl text-xs flex items-center gap-2 border animate-in fade-in ${
+            toast.type === 'error'
+              ? 'bg-red-950 text-red-100 border-red-500'
+              : 'bg-gray-900 text-white border-emerald-500'
+          }`}
+        >
+          {toast.type === 'error' ? (
+            <AlertCircle size={16} className="text-red-400" />
+          ) : (
+            <CheckCircle2 size={16} className="text-emerald-400" />
+          )}
+          <span>{toast.msg}</span>
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight">
+            WhatsApp Posts & Meta Templates
+          </h1>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Connect approved Meta templates using their Template Name, test individual sends, and broadcast to your customer base.
+          </p>
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            onClick={handleSyncFromMeta}
+            disabled={syncing}
+            className="btn-secondary text-xs px-3.5 py-2 flex items-center gap-1.5"
+          >
+            <RefreshCw size={13} className={syncing ? 'animate-spin' : ''} />
+            {syncing ? 'Syncing...' : 'Sync from Meta WABA'}
+          </button>
+          <button
+            onClick={() => setShowConnectModal(true)}
+            className="btn-primary text-xs px-4 py-2 flex items-center gap-1.5 shadow-sm"
+          >
+            <Plus size={14} /> Connect Meta Template
+          </button>
+        </div>
+      </div>
+
+      {/* Meta Template Banner Info */}
+      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center justify-between gap-4 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0">
+            <Sparkles size={20} />
+          </div>
+          <div>
+            <h3 className="text-xs font-bold text-emerald-950">
+              Create Templates in Meta &rarr; Connect Using Template Name in ReachFlow
+            </h3>
+            <p className="text-[11px] text-emerald-800">
+              Once you create and submit a template in <strong>Meta WhatsApp Manager</strong>, enter its approved <strong>Template Name</strong> (e.g. <code>summer_offer</code>) here. ReachFlow will dispatch it automatically to each customer via WhatsApp Cloud API.
+            </p>
+          </div>
+        </div>
+        <div className="hidden lg:flex items-center gap-2 text-xs font-bold text-emerald-900 shrink-0">
+          <span>Active Customers Ready: {activeCustomers.length}</span>
+        </div>
+      </div>
+
+      {/* Connected Templates Grid */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
+            <Smartphone size={16} className="text-whatsapp-teal" />
+            Connected Meta Templates ({templates.length})
+          </h2>
+          <button
+            onClick={() => {
+              const defaultTmpl: MetaTemplate = {
+                name: 'hello_world',
+                language: 'en_US',
+                category: 'MARKETING',
+                status: 'APPROVED',
+                body: 'Welcome and congratulations! This pre-approved Meta message confirms your WhatsApp Business Cloud API integration is live and working.',
+              };
+              const exists = templates.some((t) => t.name === 'hello_world');
+              if (!exists) {
+                handleSaveTemplates([...templates, defaultTmpl]);
+                showToast('Added pre-approved "hello_world" test template!');
+              } else {
+                showToast('"hello_world" template is already in your list.');
+              }
+            }}
+            className="text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition self-start sm:self-auto"
+          >
+            <Sparkles size={13} /> Add Pre-Approved "hello_world" Test Template
+          </button>
+        </div>
+
+        {templates.length === 0 ? (
+          <div className="card p-10 text-center border-dashed border-2 border-gray-200 space-y-3">
+            <p className="text-xs text-gray-500">No Meta templates connected yet.</p>
+            <button
+              onClick={() => setShowConnectModal(true)}
+              className="btn-primary text-xs px-4 py-2"
+            >
+              + Connect Your Approved Meta Template
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {templates.map((t, idx) => (
+              <div
+                key={t.name + idx}
+                className="card p-5 hover:border-emerald-500/50 transition shadow-sm space-y-4 flex flex-col justify-between"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono font-bold text-xs text-gray-900 bg-gray-100 px-2 py-1 rounded">
+                      {t.name}
+                    </span>
+                    {t.status?.toUpperCase() === 'APPROVED' ? (
+                      <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                        <Check size={11} /> APPROVED
+                      </span>
+                    ) : t.status?.toUpperCase() === 'REJECTED' ? (
+                      <span className="text-[10px] font-bold text-red-800 bg-red-100 border border-red-300 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                        <AlertCircle size={11} /> REJECTED
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-bold text-amber-900 bg-amber-100 border border-amber-300 px-2.5 py-0.5 rounded-full flex items-center gap-1" title="Meta is still reviewing this template. Messages cannot be sent until approved.">
+                        <Clock size={11} /> PENDING IN META
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="text-[10px] text-gray-500 flex items-center gap-3">
+                    <span>Language: <strong className="font-mono text-gray-700">{t.language}</strong></span>
+                    <span>Category: <strong className="text-gray-700">{t.category || 'MARKETING'}</strong></span>
+                  </div>
+
+                  {/* Message Bubble Preview */}
+                  <div className="bg-[#ECE5DD] p-3 rounded-xl border border-gray-300 text-xs text-gray-800 leading-relaxed max-h-44 overflow-y-auto whitespace-pre-line shadow-inner space-y-2">
+                    {t.header_type === 'video' ? (
+                      <div className="bg-gray-900 rounded-lg p-3 text-center text-white flex flex-col items-center justify-center gap-1 min-h-[70px]">
+                        <Video size={20} className="text-emerald-400" />
+                        <span className="text-[10px] font-semibold">Video Header Template</span>
+                      </div>
+                    ) : t.header_type === 'document' ? (
+                      <div className="bg-gray-100 border border-gray-300 rounded-lg p-3 text-center text-gray-700 flex flex-col items-center justify-center gap-1 min-h-[70px]">
+                        <FileText size={20} className="text-emerald-600" />
+                        <span className="text-[10px] font-semibold">PDF Document Header Template</span>
+                      </div>
+                    ) : t.header_type === 'image' && (
+                      <div className="relative group">
+                        {t.header_url ? (
+                          <img
+                            src={t.header_url}
+                            alt="Header"
+                            className="w-full h-24 object-cover rounded border"
+                          />
+                        ) : (
+                          <div className="h-16 bg-gray-200 rounded flex items-center justify-center text-gray-500 text-[11px]">
+                            Image Header Template
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setEditImageTemplate(t)}
+                          className="absolute top-1 right-1 bg-black/75 hover:bg-black text-white text-[10px] px-2 py-0.5 rounded shadow transition font-semibold"
+                        >
+                          Change Picture
+                        </button>
+                      </div>
+                    )}
+                    <div>{t.body || `Hello {{1}}, here is your WhatsApp message from ${t.name}.`}</div>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="pt-3 border-t flex items-center justify-between gap-2">
+                  <button
+                    onClick={() => {
+                      setSelectedTemplate(t);
+                      setShowTestModal(true);
+                    }}
+                    className="btn-secondary text-xs px-3 py-1.5 flex-1 text-center"
+                    title="Send a live test to 1 WhatsApp number"
+                  >
+                    Test Send (1)
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedTemplate(t);
+                      setShowBroadcastModal(true);
+                    }}
+                    className="btn-primary text-xs px-3 py-1.5 flex-1 flex items-center justify-center gap-1"
+                    title="Broadcast to active customer database"
+                  >
+                    <Send size={12} /> Broadcast
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Broadcast History */}
+      <div className="space-y-4 pt-4 border-t">
+        <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
+          <Calendar size={16} className="text-whatsapp-teal" />
+          Broadcast History (Day by Day)
+        </h2>
+
+        {history.length === 0 ? (
+          <div className="card p-8 text-center text-gray-400 text-xs">
+            No broadcast history yet. Run a template test or dispatch to customers to see delivery logs here.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {history.map((h) => (
+              <div
+                key={h.id}
+                className="card p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm hover:border-gray-300 transition"
+              >
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-gray-900">{h.title}</span>
+                    <span className="font-mono text-[10px] bg-gray-100 text-gray-700 px-2 py-0.5 rounded">
+                      Template: {h.template_name}
+                    </span>
+                    <span className="text-[10px] text-gray-400">{h.date}</span>
+                  </div>
+                  <div className="text-xs text-gray-600 flex flex-wrap items-center gap-3">
+                    <span>Recipients: <strong>{h.total_recipients}</strong></span>
+                    <span className="text-emerald-700">Sent: <strong>{h.sent_count}</strong></span>
+                    {h.failed_count > 0 && (
+                      <span className="text-red-600">Failed: <strong>{h.failed_count}</strong></span>
+                    )}
+                    {h.error_message && (
+                      <span className="text-[11px] text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded font-sans">
+                        Reason: {h.error_message}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    const tmpl = templates.find((t) => t.name === h.template_name) || {
+                      name: h.template_name,
+                      language: 'en',
+                    };
+                    setSelectedTemplate(tmpl);
+                    setShowBroadcastModal(true);
+                  }}
+                  className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1"
+                >
+                  <Repeat size={12} /> Repeat Broadcast
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Connect Template Modal */}
+      {showConnectModal && (
+        <ConnectTemplateModal
+          onClose={() => setShowConnectModal(false)}
+          onConnected={(newTmpl) => {
+            setShowConnectModal(false);
+            const updated = [newTmpl, ...templates.filter((t) => t.name !== newTmpl.name)];
+            handleSaveTemplates(updated);
+            showToast(`Connected Meta template "${newTmpl.name}"!`);
+          }}
+        />
+      )}
+
+      {/* Test Send Modal (1 Recipient) */}
+      {showTestModal && selectedTemplate && (
+        <TestSendModal
+          template={selectedTemplate}
+          onClose={() => setShowTestModal(false)}
+          onSent={(res) => {
+            setShowTestModal(false);
+            showToast(`Test message sent successfully! WA ID: ${res.wa_message_id || 'OK'}`);
+          }}
+        />
+      )}
+
+      {/* Bulk Broadcast Modal (Active Customers) */}
+      {showBroadcastModal && selectedTemplate && (
+        <BroadcastModal
+          template={selectedTemplate}
+          activeCount={activeCustomers.length}
+          customers={activeCustomers}
+          onClose={() => setShowBroadcastModal(false)}
+          onDispatched={(summary) => {
+            setShowBroadcastModal(false);
+            const newHistory: BroadcastHistory = {
+              id: Date.now().toString(),
+              date: new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }),
+              title: `Broadcast: ${selectedTemplate.name}`,
+              template_name: selectedTemplate.name,
+              total_recipients: summary.total,
+              sent_count: summary.sent,
+              failed_count: summary.failed,
+              error_message: summary.error,
+              status: summary.sent > 0 ? 'sent' : 'failed',
+              recipients: (summary as any).recipients || [],
+            } as any;
+            const updatedHistory = [newHistory, ...history];
+            setHistory(updatedHistory);
+            localStorage.setItem('reachflow-broadcast-history', JSON.stringify(updatedHistory));
+            if (summary.failed > 0 && summary.sent === 0) {
+              showToast(`Send failed: ${summary.error || 'Meta template not approved yet'}`, 'error');
+            } else {
+              showToast(`Broadcast completed: ${summary.sent} sent, ${summary.failed} failed.`);
+            }
+          }}
+        />
+      )}
+
+      {/* Edit Image Modal */}
+      {editImageTemplate && (
+        <EditImageModal
+          template={editImageTemplate}
+          onClose={() => setEditImageTemplate(null)}
+          onSaved={(newUrl) => {
+            const updated = templates.map((tmpl) =>
+              tmpl.name === editImageTemplate.name ? { ...tmpl, header_url: newUrl || undefined } : tmpl
+            );
+            handleSaveTemplates(updated);
+            if (selectedTemplate?.name === editImageTemplate.name) {
+              setSelectedTemplate({ ...selectedTemplate, header_url: newUrl || undefined });
+            }
+            setEditImageTemplate(null);
+            showToast(`Updated picture for template "${editImageTemplate.name}"!`);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Connect Template Modal ───────────────────────────────────────────────────
+function ConnectTemplateModal({
+  onClose,
+  onConnected,
+}: {
+  onClose: () => void;
+  onConnected: (t: MetaTemplate) => void;
+}) {
+  const [name, setName] = useState('');
+  const [language, setLanguage] = useState('en');
+  const [category, setCategory] = useState('MARKETING');
+  const [bodyText, setBodyText] = useState('Hello {{1}}, check out our latest offers today!');
+  const [headerUrl, setHeaderUrl] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+
+    const cleanedName = name.trim().toLowerCase().replace(/\s+/g, '_');
+    onConnected({
+      name: cleanedName,
+      language: language.trim(),
+      category,
+      body: bodyText.trim(),
+      header_url: headerUrl.trim() || undefined,
+      status: 'APPROVED',
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="card w-full max-w-md p-6 space-y-4 shadow-2xl">
+        <div className="flex items-center justify-between border-b pb-3">
+          <div>
+            <h2 className="text-base font-bold text-gray-900">Connect Meta Template</h2>
+            <p className="text-[11px] text-gray-500">Link your approved template from Meta WhatsApp Manager</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
+          <div>
+            <label className="label">Template Name (as created in Meta) *</label>
+            <input
+              type="text"
+              className="input font-mono font-bold"
+              placeholder="e.g. summer_offer or client_promo"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+            <p className="text-[10px] text-gray-400 mt-1">
+              Must match the exact template name approved in your Meta WhatsApp Manager.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Language Code *</label>
+              <input
+                type="text"
+                className="input font-mono"
+                placeholder="e.g. en, en_US, hi"
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label className="label">Category</label>
+              <select
+                className="input"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              >
+                <option value="MARKETING">Marketing</option>
+                <option value="UTILITY">Utility</option>
+                <option value="AUTHENTICATION">Authentication</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="label">Sample Message Body (Preview)</label>
+            <textarea
+              className="input font-medium text-xs h-20 resize-none"
+              value={bodyText}
+              onChange={(e) => setBodyText(e.target.value)}
+            />
+            <p className="text-[10px] text-gray-400 mt-0.5">Use &#123;&#123;1&#125;&#125; for customer name variable</p>
+          </div>
+
+          <div>
+            <label className="label">Header Image URL (Optional)</label>
+            <input
+              type="url"
+              className="input"
+              placeholder="https://example.com/banner.jpg"
+              value={headerUrl}
+              onChange={(e) => setHeaderUrl(e.target.value)}
+            />
+          </div>
+
+          <div className="pt-2 flex justify-end gap-2 border-t">
+            <button type="button" onClick={onClose} className="btn-secondary text-xs">
+              Cancel
+            </button>
+            <button type="submit" className="btn-primary text-xs">
+              Save & Connect Template
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── Test Send Modal (1 Number) ───────────────────────────────────────────────
+function TestSendModal({
+  template,
+  onClose,
+  onSent,
+}: {
+  template: MetaTemplate;
+  onClose: () => void;
+  onSent: (res: any) => void;
+}) {
+  const metaCreds = JSON.parse(localStorage.getItem('reachflow-active-wa') || '{}');
+  const [phone, setPhone] = useState(metaCreds.displayPhone || '');
+  const [customerName, setCustomerName] = useState(metaCreds.verifiedName || '');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!phone.trim()) return;
+
+    setLoading(true);
+    setError(null);
+
+    const components: any[] = [];
+    const hasHeader = template.header_type === 'image' || Boolean(template.header_url);
+    if (hasHeader) {
+      components.push({
+        type: 'header',
+        parameters: [
+          {
+            type: 'image',
+            image: {
+              link: template.header_url || 'https://images.unsplash.com/photo-1579208575657-c595a05383b7?w=800',
+            },
+          },
+        ],
+      });
+    }
+
+    const hasBodyVar = /\{\{\d+\}\}/.test(template.body || '');
+    if (hasBodyVar && customerName.trim()) {
+      components.push({
+        type: 'body',
+        parameters: [{ type: 'text', text: customerName.trim() }],
+      });
+    }
+
+    try {
+      // Create campaign for test send
+      const fd = new FormData();
+      fd.append('name', `Test - ${template.name}`);
+      fd.append('template_id', String((template as any).id || 1));
+      const res = await api.campaigns.create(fd);
+      onSent(res);
+    } catch (err: any) {
+      setError(err.message || 'Failed to dispatch test message');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="card w-full max-w-md p-6 space-y-4 shadow-2xl">
+        <div className="flex items-center justify-between border-b pb-3">
+          <div>
+            <h2 className="text-base font-bold text-gray-900">Test Send Template</h2>
+            <p className="text-[11px] text-gray-500 font-mono">Template: {template.name}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X size={18} />
+          </button>
+        </div>
+
+        {template.status?.toUpperCase() !== 'APPROVED' && (
+          <div className="p-3 bg-amber-50 border border-amber-300 rounded-lg text-amber-900 text-xs flex items-center gap-2">
+            <Clock size={16} className="shrink-0 text-amber-600" />
+            <div>
+              <strong>Pending Meta Approval:</strong> Meta has not approved &ldquo;{template.name}&rdquo; yet. In WhatsApp Cloud API, sending is blocked until Meta changes status to APPROVED. You can use <strong>hello_world</strong> to test right now!
+            </div>
+          </div>
+        )}
+
+        {error && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-xs flex items-center gap-2">
+            <AlertCircle size={16} className="shrink-0 text-red-500" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <form onSubmit={handleSend} className="space-y-3.5 text-xs">
+          <div>
+            <label className="label">Send Test To Mobile Number *</label>
+            <input
+              type="text"
+              className="input font-mono font-bold"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+919876543210"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="label">Customer Name Variable (for &#123;&#123;1&#125;&#125;)</label>
+            <input
+              type="text"
+              className="input"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              placeholder="e.g. John"
+            />
+          </div>
+
+          <div className="p-2.5 bg-gray-50 border rounded-lg text-[11px] text-gray-600">
+            This will trigger a real WhatsApp Cloud API request to verify template acceptance on Meta's servers.
+          </div>
+
+          <div className="pt-2 flex justify-end gap-2 border-t">
+            <button type="button" onClick={onClose} className="btn-secondary text-xs">
+              Cancel
+            </button>
+            <button type="submit" disabled={loading} className="btn-primary text-xs flex items-center gap-1.5">
+              {loading ? 'Sending...' : 'Send Test Now'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── Bulk Broadcast Modal (WhatsApp Style Recipient Selector) ───────────────
+function BroadcastModal({
+  template,
+  activeCount,
+  customers,
+  onClose,
+  onDispatched,
+}: {
+  template: MetaTemplate;
+  activeCount: number;
+  customers: any[];
+  onClose: () => void;
+  onDispatched: (summary: { total: number; sent: number; failed: number; error?: string; recipients?: any[] }) => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [headerImageUrl, setHeaderImageUrl] = useState(template.header_url || '');
+  const [error, setError] = useState<string | null>(null);
+
+  // Search, filter tabs & pagination limit
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterTab, setFilterTab] = useState<'all' | 'selected' | 'unselected'>('all');
+  const [displayCount, setDisplayCount] = useState(100);
+
+  // 1. Prepare valid recipients from all provided customer contacts
+  const validRecipients = useMemo(() => {
+    return customers
+      .map((c) => {
+        const mob = c.whatsapp_e164 || c.mobile_number || c.mobile || c.phone || c.phone_raw || '';
+        return {
+          id: c.id,
+          mobile: mob,
+          name: c.name || c.display_name || 'Customer',
+        };
+      })
+      .filter((r) => r.mobile && r.mobile.replace(/[^0-9]/g, '').length >= 8);
+  }, [customers]);
+
+  // 2. Selected IDs state (defaults to selecting all valid recipients)
+  const [selectedIds, setSelectedIds] = useState<Set<number | string>>(() => {
+    return new Set(validRecipients.map((r) => r.id));
+  });
+
+  // Keep in sync if customers load asynchronously after opening modal
+  useEffect(() => {
+    if (validRecipients.length > 0 && selectedIds.size === 0) {
+      setSelectedIds(new Set(validRecipients.map((r) => r.id)));
+    }
+  }, [validRecipients]);
+
+  // 3. Filtered recipients based on search query and active tab
+  const filteredRecipients = useMemo(() => {
+    let list = validRecipients;
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      const cleanQ = q.replace(/[^0-9]/g, '');
+      list = list.filter((r) => {
+        const nameMatch = r.name.toLowerCase().includes(q);
+        const phoneMatch = cleanQ
+          ? r.mobile.replace(/[^0-9]/g, '').includes(cleanQ)
+          : r.mobile.toLowerCase().includes(q);
+        return nameMatch || phoneMatch;
+      });
+    }
+
+    if (filterTab === 'selected') {
+      list = list.filter((r) => selectedIds.has(r.id));
+    } else if (filterTab === 'unselected') {
+      list = list.filter((r) => !selectedIds.has(r.id));
+    }
+
+    return list;
+  }, [validRecipients, searchQuery, filterTab, selectedIds]);
+
+  const toggleRecipient = (id: number | string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    if (searchQuery.trim() || filterTab !== 'all') {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        for (const r of filteredRecipients) {
+          next.add(r.id);
+        }
+        return next;
+      });
+    } else {
+      setSelectedIds(new Set(validRecipients.map((r) => r.id)));
+    }
+  };
+
+  const deselectAll = () => {
+    if (searchQuery.trim() || filterTab !== 'all') {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        for (const r of filteredRecipients) {
+          next.delete(r.id);
+        }
+        return next;
+      });
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const isApproved = (template.status || '').toUpperCase() === 'APPROVED';
+
+  const handleStartBroadcast = async () => {
+    if (selectedIds.size === 0) {
+      alert('Please select at least one recipient to broadcast to.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const fd = new FormData();
+      fd.append('name', `Broadcast - ${template.name}`);
+      fd.append('template_id', String((template as any).id || 1));
+
+      // Pass only the chosen recipient contact IDs
+      fd.append('contact_ids', JSON.stringify(Array.from(selectedIds)));
+
+      if (headerImageUrl && template.header_type === 'image') {
+        fd.append('header_image_url', headerImageUrl);
+      }
+
+      const res = await api.campaigns.create(fd);
+      const summaryData = (res as any)?.data ?? res;
+      const sent = typeof summaryData?.sent === 'number' ? summaryData.sent : selectedIds.size;
+      const failed = typeof summaryData?.failed === 'number' ? summaryData.failed : 0;
+      const total = typeof summaryData?.total === 'number' ? summaryData.total : selectedIds.size;
+      const details = summaryData?.details ?? [];
+      const firstErr = details.find((d: any) => d.status === 'failed')?.error;
+
+      const selectedRecipients = validRecipients.filter((r) => selectedIds.has(r.id));
+
+      onDispatched({
+        total,
+        sent,
+        failed,
+        error: firstErr,
+        recipients: selectedRecipients,
+      });
+    } catch (err: any) {
+      setError(err.message || 'Broadcast failed to dispatch');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const visibleList = filteredRecipients.slice(0, displayCount);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="card w-full max-w-2xl p-6 space-y-4 shadow-2xl my-8 max-h-[92vh] flex flex-col">
+        {/* Modal Header */}
+        <div className="flex items-center justify-between border-b pb-3 shrink-0">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base font-bold text-gray-900">Broadcast WhatsApp Template</h2>
+              {isApproved ? (
+                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <Check size={10} /> APPROVED
+                </span>
+              ) : (
+                <span className="text-[10px] font-bold text-amber-900 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <Clock size={10} /> PENDING
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-gray-500 font-mono">Template: {template.name}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">
+            <X size={20} />
+          </button>
+        </div>
+
+        {!isApproved && (
+          <div className="p-3 bg-amber-50 border border-amber-300 rounded-lg text-amber-900 text-xs flex items-center gap-2 shrink-0">
+            <Clock size={16} className="shrink-0 text-amber-600" />
+            <div>
+              <strong>Pending Meta Approval:</strong> Meta has not approved &ldquo;{template.name}&rdquo; yet. In WhatsApp Cloud API, sending is blocked until Meta changes status to APPROVED.
+            </div>
+          </div>
+        )}
+
+        {error && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-xs flex items-center gap-2 shrink-0">
+            <AlertCircle size={16} className="shrink-0 text-red-500" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* WhatsApp-style Audience Selector */}
+        <div className="space-y-3 flex-1 min-h-0 flex flex-col">
+          {/* Target Audience Summary & Quick Actions */}
+          <div className="bg-emerald-50/70 border border-emerald-200 p-3 rounded-xl flex flex-wrap items-center justify-between gap-2 shrink-0">
+            <div className="flex items-center gap-2 text-emerald-950 font-semibold text-xs">
+              <Users size={16} className="text-emerald-700" />
+              <span>Target Audience:</span>
+              <span className="font-bold text-emerald-900 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full text-xs">
+                {selectedIds.size} of {validRecipients.length} Selected
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5 text-xs">
+              <button
+                type="button"
+                onClick={selectAll}
+                className="px-2.5 py-1 text-[11px] font-semibold text-emerald-800 bg-white border border-emerald-300 rounded-md hover:bg-emerald-50 transition-colors"
+              >
+                Select All
+              </button>
+              <button
+                type="button"
+                onClick={deselectAll}
+                className="px-2.5 py-1 text-[11px] font-semibold text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                Deselect All
+              </button>
+            </div>
+          </div>
+
+          {/* Search Bar & Filter Tabs */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0">
+            <div className="relative flex-1">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                className="input text-xs pl-8 pr-7 py-2 w-full"
+                placeholder="Search by customer name or phone number..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setDisplayCount(100);
+                }}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1 bg-gray-100 p-0.5 rounded-lg border text-[11px] shrink-0">
+              <button
+                type="button"
+                onClick={() => setFilterTab('all')}
+                className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
+                  filterTab === 'all' ? 'bg-white text-gray-900 shadow-sm font-semibold' : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                All ({validRecipients.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterTab('selected')}
+                className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
+                  filterTab === 'selected' ? 'bg-emerald-600 text-white shadow-sm font-semibold' : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Selected ({selectedIds.size})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterTab('unselected')}
+                className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
+                  filterTab === 'unselected' ? 'bg-gray-700 text-white shadow-sm font-semibold' : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Removed ({validRecipients.length - selectedIds.size})
+              </button>
+            </div>
+          </div>
+
+          {/* Interactive Scrollable Contact List (WhatsApp Style) */}
+          <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-inner flex-1 min-h-[160px] flex flex-col">
+            <div className="overflow-y-auto divide-y divide-gray-100 flex-1 max-h-56">
+              {visibleList.length === 0 ? (
+                <div className="p-8 text-center text-gray-500 text-xs">
+                  {searchQuery
+                    ? `No contacts found matching "${searchQuery}"`
+                    : filterTab === 'selected'
+                    ? 'No contacts currently selected'
+                    : filterTab === 'unselected'
+                    ? 'All contacts are currently selected'
+                    : 'No valid customer contacts found.'}
+                </div>
+              ) : (
+                visibleList.map((r) => {
+                  const isSelected = selectedIds.has(r.id);
+                  const initial = (r.name.trim()[0] || 'C').toUpperCase();
+                  return (
+                    <div
+                      key={r.id}
+                      onClick={() => toggleRecipient(r.id)}
+                      className={`flex items-center justify-between px-3.5 py-2 cursor-pointer transition-colors select-none ${
+                        isSelected ? 'bg-emerald-50/40 hover:bg-emerald-50/80' : 'hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        {/* Checkbox */}
+                        <div
+                          className={`w-4 h-4 rounded flex items-center justify-center border transition-colors shrink-0 ${
+                            isSelected
+                              ? 'bg-emerald-600 border-emerald-600 text-white'
+                              : 'bg-white border-gray-300 text-transparent'
+                          }`}
+                        >
+                          <Check size={11} strokeWidth={3} />
+                        </div>
+
+                        {/* Circular Avatar */}
+                        <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-sm">
+                          {initial}
+                        </div>
+
+                        {/* Name and Mobile */}
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-gray-900 truncate">
+                            {r.name}
+                          </p>
+                          <p className="text-[11px] font-mono text-gray-500 truncate">
+                            {r.mobile}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Quick Action Button */}
+                      <div className="shrink-0 ml-2">
+                        {isSelected ? (
+                          <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <Check size={9} /> Added
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-medium text-gray-600 bg-gray-100 border border-gray-300 px-2 py-0.5 rounded-full hover:bg-gray-200">
+                            + Add
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {filteredRecipients.length > visibleList.length && (
+              <div className="p-2 bg-gray-50 border-t text-center text-xs text-gray-600 flex items-center justify-between px-4 shrink-0">
+                <span className="text-[11px]">
+                  Showing {visibleList.length} of {filteredRecipients.length} matching contacts
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setDisplayCount((prev) => prev + 100)}
+                  className="font-semibold text-emerald-700 hover:text-emerald-800 text-xs"
+                >
+                  Load More (+100)
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {template.header_type === 'image' && (
+          <div className="shrink-0">
+            <label className="label">Custom Header Image URL (Optional)</label>
+            <input
+              type="url"
+              className="input text-xs font-mono"
+              placeholder="https://your-domain.com/banner.jpg"
+              value={headerImageUrl}
+              onChange={(e) => setHeaderImageUrl(e.target.value)}
+            />
+            <p className="text-[10px] text-gray-400 mt-0.5">
+              Paste any public image link you wish to attach to this template broadcast.
+            </p>
+          </div>
+        )}
+
+        <div className="space-y-1 bg-gray-50 p-2.5 rounded-lg border text-gray-600 text-[11px] shrink-0">
+          <div>• Each customer receives an individual WhatsApp message using Meta Cloud API.</div>
+          <div>• Variables like &#123;&#123;1&#125;&#125; are automatically personalized with each customer's name.</div>
+          <div>• Safe dispatch queue with rate limiting to protect your Meta phone number quality score.</div>
+        </div>
+
+        {/* Modal Footer Actions */}
+        <div className="pt-2 flex justify-end gap-2 border-t shrink-0">
+          <button type="button" onClick={onClose} className="btn-secondary text-xs">
+            Cancel
+          </button>
+          <button
+            onClick={handleStartBroadcast}
+            disabled={loading || selectedIds.size === 0 || !isApproved}
+            className="btn-primary text-xs flex items-center gap-1.5"
+          >
+            {loading ? 'Broadcasting...' : `Send to ${selectedIds.size} Selected Customers`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function formatImageUrl(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) return '';
+
+  // Google Drive conversion
+  if (trimmed.includes('drive.google.com') || trimmed.includes('docs.google.com')) {
+    const match = trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/) || trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+      return `https://lh3.googleusercontent.com/d/${match[1]}`;
+    }
+  }
+
+  // Dropbox conversion
+  if (trimmed.includes('dropbox.com')) {
+    return trimmed.replace('dl=0', 'raw=1');
+  }
+
+  return trimmed;
+}
+
+// ── Edit Image Modal ─────────────────────────────────────────────────────────
+function EditImageModal({
+  template,
+  onClose,
+  onSaved,
+}: {
+  template: MetaTemplate;
+  onClose: () => void;
+  onSaved: (url: string) => void;
+}) {
+  const [rawInput, setRawInput] = useState(template.header_url || '');
+  const [url, setUrl] = useState(template.header_url || '');
+  const [isDrive, setIsDrive] = useState(false);
+  const [imgError, setImgError] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
+
+  const handleUrlChange = (val: string) => {
+    setRawInput(val);
+    const converted = formatImageUrl(val);
+    setUrl(converted);
+    setIsDrive(val.includes('drive.google.com'));
+    setImgError(false);
+    setImgLoaded(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="card w-full max-w-md p-6 space-y-4 shadow-2xl">
+        <div className="flex items-center justify-between border-b pb-3">
+          <div>
+            <h2 className="text-base font-bold text-gray-900">Change Header Picture</h2>
+            <p className="text-[11px] text-gray-500 font-mono">Template: {template.name}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="space-y-3.5 text-xs">
+          <div>
+            <label className="label">Image URL or Google Drive Link</label>
+            <input
+              type="url"
+              className="input font-mono text-xs"
+              placeholder="https://drive.google.com/file/d/... or https://...jpg"
+              value={rawInput}
+              onChange={(e) => handleUrlChange(e.target.value)}
+            />
+            {isDrive && (
+              <p className="text-[11px] text-blue-700 bg-blue-50 border border-blue-200 p-2 rounded-lg mt-1 font-semibold">
+                Google Drive link detected! Converted to direct image format. Please ensure General Access in Google Drive is set to <strong>"Anyone with the link can view"</strong>.
+              </p>
+            )}
+            <p className="text-[10px] text-gray-400 mt-1">
+              Supports direct image links (.jpg, .png) and public Google Drive image links.
+            </p>
+          </div>
+
+          {/* Live Preview Box */}
+          <div className="border rounded-xl p-3 bg-gray-50 space-y-2">
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Live Preview</span>
+            {url ? (
+              <div className="space-y-2">
+                <img
+                  src={url}
+                  alt="Preview"
+                  className="w-full h-36 object-cover rounded-lg border bg-white"
+                  onLoad={() => {
+                    setImgLoaded(true);
+                    setImgError(false);
+                  }}
+                  onError={() => {
+                    setImgError(true);
+                    setImgLoaded(false);
+                  }}
+                />
+                {imgLoaded && (
+                  <div className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200 p-2 rounded-lg flex items-center gap-1.5 font-semibold">
+                    <CheckCircle2 size={14} className="shrink-0" />
+                    Valid image verified! WhatsApp can display this file.
+                  </div>
+                )}
+                {imgError && (
+                  <div className="text-[11px] text-red-700 bg-red-50 border border-red-200 p-2 rounded-lg flex items-center gap-1.5">
+                    <AlertCircle size={14} className="shrink-0" />
+                    Cannot load image. Make sure the URL ends with .jpg or .png.
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="h-28 border border-dashed rounded-lg flex flex-col items-center justify-center text-gray-400 gap-1">
+                <ImageIcon size={24} />
+                <span className="text-[11px]">Paste an image link above to preview your banner</span>
+              </div>
+            )}
+          </div>
+
+          <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-lg text-blue-900 text-[11px] space-y-1">
+            <div className="font-bold">Need a direct link for your image?</div>
+            <div>
+              Upload your image to free hosts like{' '}
+              <a href="https://imgbb.com" target="_blank" rel="noreferrer" className="underline font-bold">
+                ImgBB.com
+              </a>{' '}
+              or{' '}
+              <a href="https://postimages.org" target="_blank" rel="noreferrer" className="underline font-bold">
+                Postimages.org
+              </a>
+              , copy the <strong>Direct Link</strong> (ending in .jpg / .png), and paste it here!
+            </div>
+          </div>
+
+          <div className="pt-2 flex justify-end gap-2 border-t">
+            <button type="button" onClick={onClose} className="btn-secondary text-xs">
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => onSaved(url.trim())}
+              disabled={!url.trim() || imgError}
+              className="btn-primary text-xs flex items-center gap-1.5 disabled:opacity-50"
+            >
+              Save New Picture
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
