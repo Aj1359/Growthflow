@@ -192,7 +192,6 @@ const handleTick = async (req: Request, res: Response) => {
     if (client) client.release();
   }
 };
-};
 
 router.post('/tick', handleTick);
 router.get('/tick', handleTick);
