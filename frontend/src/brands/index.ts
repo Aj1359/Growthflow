@@ -21,6 +21,7 @@ export function applyBrandTheme(brand: BrandConfig = currentBrand): void {
   root.style.setProperty('--color-primary', tokens.primary);
   root.style.setProperty('--color-primary-hover', tokens.primaryHover);
   root.style.setProperty('--color-accent', tokens.accent);
+  root.style.setProperty('--color-accent-hover', tokens.accentHover || tokens.accent);
   root.style.setProperty('--color-bg', tokens.bg);
   root.style.setProperty('--color-surface', tokens.surface);
   root.style.setProperty('--color-text', tokens.text);
@@ -30,6 +31,7 @@ export function applyBrandTheme(brand: BrandConfig = currentBrand): void {
   root.style.setProperty('--sidebar-border', tokens.sidebarBorder);
   root.style.setProperty('--sidebar-active-bg', tokens.sidebarActiveBg);
   root.style.setProperty('--sidebar-text', tokens.sidebarText);
+  root.style.setProperty('--sidebar-gold', tokens.sidebarGold || '#D4AF37');
   root.style.setProperty('--radius', tokens.radius);
   root.style.setProperty('--shadow-custom', tokens.shadow);
   root.style.setProperty('--font-heading', tokens.fontHeading);

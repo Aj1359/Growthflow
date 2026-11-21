@@ -19,20 +19,22 @@ export const growthflowBrand: BrandConfig = {
     { to: '/profile', label: 'Settings', icon: 'Settings' },
   ],
   tokens: {
-    primary: '#0F766E',
-    primaryHover: '#0D9488',
-    accent: '#F59E0B',
-    bg: '#F8FAFC',
-    surface: '#FFFFFF',
-    text: '#0F172A',
-    muted: '#64748B',
-    border: '#E2E8F0',
-    sidebarBg: '#0C3C37',
-    sidebarBorder: '#0F443E',
-    sidebarActiveBg: 'rgba(255, 255, 255, 0.14)',
-    sidebarText: '#FFFFFF',
-    radius: '1rem', // rounded-2xl / rounded-xl per spec
-    shadow: '0 4px 20px -2px rgba(15, 118, 110, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.04)',
+    primary: '#2D3A1E',          // Deep luxury olive
+    primaryHover: '#3D4F29',     // Slightly lighter olive on hover
+    accent: '#D4AF37',           // Premium warm gold
+    accentHover: '#E5C048',      // Bright gold
+    bg: '#FAFAF8',               // Clean, warm premium white
+    surface: '#FFFFFF',          // Pure crisp white cards
+    text: '#111827',             // Rich premium black
+    muted: '#6B7280',            // Subtle grey
+    border: '#E5E7EB',           // Crisp divider border
+    sidebarBg: '#1E2B16',        // Rich dark olive green for sidebars
+    sidebarBorder: '#2E3E24',     // Subtly lighter olive border
+    sidebarActiveBg: 'linear-gradient(135deg, rgba(212, 175, 55, 0.22) 0%, rgba(212, 175, 55, 0.10) 100%)', // Gold active highlight
+    sidebarText: '#F9FAFB',      // Crisp light text on dark olive
+    sidebarGold: '#D4AF37',      // Metallic champagne gold
+    radius: '1rem',
+    shadow: '0 4px 20px -2px rgba(45, 58, 30, 0.08), 0 2px 6px -1px rgba(212, 175, 55, 0.06)',
     fontHeading: "'Plus Jakarta Sans', sans-serif",
     fontBody: "'Inter', sans-serif",
   },

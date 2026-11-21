@@ -163,13 +163,14 @@ export default function SimpleDashboard() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-10">
-      {/* GrowthFlow Welcome Banner matching Mockup */}
-      <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-gradient-to-r from-[#eef9f6] via-[#f0fbf7] to-[#e4f5ee] border border-teal-100 shadow-xs">
+      {/* GrowthFlow Welcome Banner matching Mockup with Premium White & Golden styling */}
+      <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-gradient-to-r from-[#FAF8F2] via-[#FFFFFF] to-[#F5F2E9] border border-[#D4AF37]/30 shadow-xs">
         <div className="relative z-10 max-w-xl space-y-1.5">
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0F172A] tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#111827] tracking-tight">
             Good Morning, {orgName}! 👋
           </h1>
-          <p className="text-sm font-medium text-teal-800/80">
+          <p className="text-sm font-semibold text-[#2D3A1E] flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
             Grow your customers on WhatsApp
           </p>
         </div>
@@ -178,11 +179,11 @@ export default function SimpleDashboard() {
         <div className="absolute right-4 sm:right-10 top-1/2 -translate-y-1/2 hidden md:flex items-center gap-4 opacity-90 pointer-events-none">
           <div className="relative">
             <svg width="140" height="90" viewBox="0 0 140 90" fill="none" xmlns="http://www.w3.org/2000/svg">
-              {/* Flight dashed trail */}
-              <path d="M10 75 Q 60 70, 95 35" stroke="#0F766E" strokeWidth="1.5" strokeDasharray="3 3" opacity="0.4" />
+              {/* Flight dashed trail in gold */}
+              <path d="M10 75 Q 60 70, 95 35" stroke="#D4AF37" strokeWidth="1.5" strokeDasharray="3 3" opacity="0.6" />
               {/* Paper airplane */}
-              <path d="M85 30 L130 15 L105 45 L95 35 Z" fill="#E2E8F0" stroke="#CBD5E1" strokeWidth="1" />
-              <path d="M105 45 L95 35 L100 50 Z" fill="#94A3B8" />
+              <path d="M85 30 L130 15 L105 45 L95 35 Z" fill="#FFFFFF" stroke="#D4AF37" strokeWidth="1.2" />
+              <path d="M105 45 L95 35 L100 50 Z" fill="#D4AF37" opacity="0.5" />
             </svg>
             <div className="absolute -top-1 -right-3 w-10 h-10 rounded-full bg-[#25D366] text-white flex items-center justify-center shadow-lg shadow-emerald-500/20">
               <MessageSquare size={20} fill="white" />
@@ -302,13 +303,13 @@ export default function SimpleDashboard() {
           <div className="w-full h-52 relative pt-2">
             <svg viewBox="0 0 600 180" className="w-full h-full overflow-visible">
               <defs>
-                <linearGradient id="chartTealFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#0F766E" stopOpacity="0.12" />
-                  <stop offset="100%" stopColor="#0F766E" stopOpacity="0.0" />
+                <linearGradient id="chartOliveFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#2D3A1E" stopOpacity="0.16" />
+                  <stop offset="100%" stopColor="#2D3A1E" stopOpacity="0.0" />
                 </linearGradient>
-                <linearGradient id="chartAmberFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#F59E0B" stopOpacity="0.15" />
-                  <stop offset="100%" stopColor="#F59E0B" stopOpacity="0.0" />
+                <linearGradient id="chartGoldFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#D4AF37" stopOpacity="0.22" />
+                  <stop offset="100%" stopColor="#D4AF37" stopOpacity="0.0" />
                 </linearGradient>
               </defs>
 
@@ -324,28 +325,28 @@ export default function SimpleDashboard() {
               <text x="15" y="104" fontSize="10" fill="#94A3B8" fontFamily="Inter">2k</text>
               <text x="25" y="144" fontSize="10" fill="#94A3B8" fontFamily="Inter">0</text>
 
-              {/* Teal Curve: Sent */}
+              {/* Olive Curve: Sent */}
               <path
                 d="M40 130 C 100 110, 140 100, 200 85 C 260 70, 310 90, 370 75 C 430 60, 480 85, 540 65 L 580 60 L 580 140 L 40 140 Z"
-                fill="url(#chartTealFill)"
+                fill="url(#chartOliveFill)"
               />
               <path
                 d="M40 130 C 100 110, 140 100, 200 85 C 260 70, 310 90, 370 75 C 430 60, 480 85, 540 65 L 580 60"
                 fill="none"
-                stroke="#0F766E"
+                stroke="#2D3A1E"
                 strokeWidth="2.5"
                 strokeLinecap="round"
               />
 
-              {/* Amber Curve: Delivered */}
+              {/* Gold Curve: Delivered */}
               <path
                 d="M40 140 C 100 120, 140 115, 200 100 C 260 85, 310 105, 370 90 C 430 75, 480 95, 540 75 L 580 70 L 580 140 L 40 140 Z"
-                fill="url(#chartAmberFill)"
+                fill="url(#chartGoldFill)"
               />
               <path
                 d="M40 140 C 100 120, 140 115, 200 100 C 260 85, 310 105, 370 90 C 430 75, 480 95, 540 75 L 580 70"
                 fill="none"
-                stroke="#F59E0B"
+                stroke="#D4AF37"
                 strokeWidth="2.5"
                 strokeLinecap="round"
               />
@@ -365,7 +366,7 @@ export default function SimpleDashboard() {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-bold text-gray-900">Recent Campaigns</h2>
-              <button onClick={() => navigate('/posts')} className="text-xs font-bold text-teal-700 hover:text-teal-800 flex items-center gap-1">
+              <button onClick={() => navigate('/posts')} className="text-xs font-bold text-[#2D3A1E] hover:text-[#D4AF37] flex items-center gap-1 transition">
                 View All →
               </button>
             </div>

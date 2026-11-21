@@ -10,6 +10,7 @@ export interface BrandTokens {
   primary: string;
   primaryHover: string;
   accent: string;
+  accentHover?: string;
   bg: string;
   surface: string;
   text: string;
@@ -19,6 +20,7 @@ export interface BrandTokens {
   sidebarBorder: string;
   sidebarActiveBg: string;
   sidebarText: string;
+  sidebarGold?: string;
   radius: string;
   shadow: string;
   fontHeading: string;

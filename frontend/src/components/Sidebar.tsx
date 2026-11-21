@@ -52,11 +52,11 @@ export function Sidebar() {
       {/* Brand Header */}
       <div
         className="flex items-center gap-3 px-5 py-5 border-b"
-        style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}
+        style={{ borderColor: 'rgba(212, 175, 55, 0.15)' }}
       >
         {isGrowthFlow ? (
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-white/10 p-1 flex items-center justify-center border border-white/20 shadow-sm shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-white/10 p-1 flex items-center justify-center border border-[#D4AF37]/40 shadow-sm shrink-0">
               <img
                 src="/growthflow-logo.png"
                 alt="GrowthFlow Logo"
@@ -69,9 +69,9 @@ export function Sidebar() {
             <div>
               <div className="flex items-center">
                 <span className="font-extrabold text-base tracking-tight text-white">Growth</span>
-                <span className="font-extrabold text-base tracking-tight text-amber-400">Flow</span>
+                <span className="font-extrabold text-base tracking-tight text-[#D4AF37]">Flow</span>
               </div>
-              <p className="text-[10px] text-teal-300 font-medium truncate max-w-[130px]">
+              <p className="text-[10px] text-amber-200/80 font-medium truncate max-w-[130px]">
                 {currentBrand.tagline}
               </p>
             </div>
@@ -85,7 +85,7 @@ export function Sidebar() {
             />
             <div>
               <h2 className="font-extrabold text-sm tracking-wide text-white">{currentBrand.name}</h2>
-              <p className="text-[10px] text-emerald-300 font-bold uppercase tracking-wider truncate max-w-[140px]">
+              <p className="text-[10px] text-amber-200/80 font-bold uppercase tracking-wider truncate max-w-[140px]">
                 {currentOrg?.name || 'Business Platform'}
               </p>
             </div>
@@ -112,13 +112,14 @@ export function Sidebar() {
               style={({ isActive }) =>
                 isActive
                   ? {
-                      backgroundColor: 'var(--sidebar-active-bg)',
-                      border: '1px solid rgba(255, 255, 255, 0.16)',
+                      background: 'var(--sidebar-active-bg)',
+                      border: '1px solid rgba(212, 175, 55, 0.35)',
+                      color: '#FFFFFF',
                     }
                   : {}
               }
             >
-              <Icon size={18} className="shrink-0 text-amber-400" />
+              <Icon size={18} className="shrink-0 text-[#D4AF37]" />
               <span className="truncate">{label}</span>
             </NavLink>
           );
@@ -128,19 +129,19 @@ export function Sidebar() {
       {/* GrowthFlow Pro Banner (from Mockup Design) */}
       {isGrowthFlow && (
         <div className="px-3 pb-3">
-          <div className="rounded-xl p-3 bg-gradient-to-br from-teal-800/80 to-teal-900/90 border border-teal-600/30 text-white shadow-inner">
+          <div className="rounded-xl p-3 bg-gradient-to-br from-[#2E3E24] to-[#1E2B16] border border-[#D4AF37]/30 text-white shadow-inner">
             <div className="flex items-center gap-2 mb-1.5">
-              <span className="p-1 rounded-lg bg-amber-500/20 text-amber-400">
+              <span className="p-1 rounded-lg bg-[#D4AF37]/20 text-[#D4AF37]">
                 <Rocket size={14} />
               </span>
-              <p className="text-xs font-bold leading-tight">Grow Faster</p>
+              <p className="text-xs font-bold leading-tight text-white">Grow Faster</p>
             </div>
-            <p className="text-[10px] text-teal-200/80 mb-2">
+            <p className="text-[10px] text-amber-100/70 mb-2">
               Scale messaging limits with GrowthFlow Pro.
             </p>
             <button
               onClick={() => navigate('/profile')}
-              className="w-full text-center py-1.5 px-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-900 font-extrabold text-[11px] rounded-lg shadow-sm transition-all"
+              className="w-full text-center py-1.5 px-2 bg-gradient-to-r from-[#D4AF37] to-[#E5C048] hover:brightness-105 text-[#111827] font-extrabold text-[11px] rounded-lg shadow-sm transition-all"
             >
               Upgrade Plan →
             </button>
@@ -151,14 +152,14 @@ export function Sidebar() {
       {/* User Info & Logout */}
       <div
         className="px-4 py-3.5 border-t"
-        style={{ borderColor: 'rgba(255, 255, 255, 0.08)' }}
+        style={{ borderColor: 'rgba(212, 175, 55, 0.15)' }}
       >
         <div className="flex items-center justify-between">
           <div className="overflow-hidden">
             <p className="text-xs font-bold text-white truncate">
               {user?.full_name || user?.email?.split('@')[0] || 'User'}
             </p>
-            <p className="text-[10px] text-teal-200/70 truncate">{user?.email}</p>
+            <p className="text-[10px] text-amber-100/60 truncate">{user?.email}</p>
           </div>
           <button
             onClick={handleSignOut}
