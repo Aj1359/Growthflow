@@ -27,6 +27,9 @@ app.use(
 const parsedOrigins = env.FRONTEND_ORIGIN.split(',').map((o) => o.trim().replace(/\/$/, '')).filter(Boolean);
 const allowedOrigins = [
   ...parsedOrigins,
+  'https://growthflow-frontend-1jk6.onrender.com',
+  'https://growthflow-frontend-1jko.onrender.com',
+  'https://growthflow-frontend.onrender.com',
   'http://localhost:5173',
   'http://localhost:3000',
   'http://127.0.0.1:5173',
@@ -37,7 +40,7 @@ app.use(
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
       const cleanOrigin = origin.replace(/\/$/, '');
-      if (allowedOrigins.includes(cleanOrigin)) {
+      if (allowedOrigins.includes(cleanOrigin) || cleanOrigin.endsWith('.onrender.com')) {
         return callback(null, true);
       }
       return callback(null, false);
