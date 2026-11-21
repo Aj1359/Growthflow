@@ -1,99 +1,111 @@
-# GrowthFlow — Production WhatsApp Broadcast & Customer Growth Platform
+# GrowthFlow
 
-GrowthFlow is an enterprise-grade multi-tenant WhatsApp Cloud API broadcasting and customer growth platform built with:
-- **Backend**: Node.js, Express, TypeScript, Supabase PostgreSQL with Row Level Security (RLS)
-- **Frontend**: React 18, Vite, Tailwind CSS, TypeScript
-- **Infrastructure**: Meta WhatsApp Cloud API (v21.0), Render Cloud Hosting
+GrowthFlow is an automated WhatsApp customer engagement, broadcast, and lifecycle messaging platform built specifically for high-conversion communication.
 
 ---
 
-## 🔒 Core Architecture & Security Model
+## Architecture & How GrowthFlow Differs from ReachFlow
 
-1. **Authentication & Tenant Isolation**:
-   - Every `/api/*` route is protected by Supabase JWT verification (`jose`) and organization membership checks.
-   - Cross-organization data leakage is completely blocked at both the database level (foreign keys & constraints) and application layer.
-   - `X-Org-Id` is accepted only if the caller's JWT is verified as an active member of that organization.
-   - Tokens and secrets are encrypted at rest using AES-256-GCM. Decrypted tokens are never returned over the network or saved in client-side storage.
+GrowthFlow runs as an **independent application** with its own repository, branding, and Render deployment services, while safely sharing a single Supabase / PostgreSQL database with ReachFlow:
 
-2. **Asynchronous Broadcast Sending Worker**:
-   - Broadcast requests create a `campaigns` record and enqueue recipient rows in `messages` with `status = 'queued'`. Zero messages are dispatched inside the HTTP request.
-   - A dedicated worker claims pending rows using `SELECT ... FOR UPDATE OF m SKIP LOCKED LIMIT 40`.
-   - Supports rate limiting per organization, exponential backoff for retryable errors (30s, 2m, 10m, 30m), and automatic stuck-message sweeping.
-   - Header images are uploaded once to Meta (`POST /{phone-number-id}/media`) and shared across recipient dispatches via `media_id`.
+1. **Shared Database with Brand Isolation**:
+   - Both backends communicate with the same PostgreSQL instance.
+   - Every organization belongs to an `APP_BRAND` (`growthflow` vs `reachflow`).
+   - The database enforces brand isolation via the `organizations.brand` column and check constraint (`organizations_brand_check`).
+   - Auth middleware filters user memberships by `APP_BRAND = 'growthflow'`. Users belonging strictly to ReachFlow cannot authenticate against GrowthFlow (returns `403 WRONG_APP`).
+   - Sender workers and internal schedulers only claim and process messages for `growthflow` organizations.
+   - Advisory lock keys are partitioned by brand (`hashtext('tick:growthflow')`), preventing scheduler locks from blocking ReachFlow.
+   - Inbound Meta webhooks verify whether the destination WhatsApp account belongs to a GrowthFlow organization before taking any action.
 
-3. **Live, Verified Delivery & Engagement Sync**:
-   - The webhook endpoint `/webhooks/whatsapp` requires strict HMAC-SHA256 signature verification (`X-Hub-Signature-256`) using timing-safe comparisons.
-   - Lifecycle state progression strictly enforces `sent` &rarr; `delivered` &rarr; `read`.
-   - Inbound customer replies are captured, linked to prior campaign dispatches, and trigger real-time threads in the **Replies Inbox**.
-   - Optional auto-forwarding dispatches incoming customer inquiries to a business owner's personal WhatsApp number via an approved Meta utility template.
+2. **Distinct Branding & UI**:
+   - Modern design tokens (`#0F766E` deep teal primary, `#F59E0B` warm amber accent, `#0C3C37` dark teal sidebar).
+   - Plus Jakarta Sans heading and Inter body typography.
+   - Tailored customer onboarding copy, illustrations, and dashboard views.
 
-4. **Multi-Tenant Opt-Out (STOP)**:
-   - When a contact replies `STOP`, `UNSUBSCRIBE`, `CANCEL`, `END`, or `QUIT`, their contact status is marked `opted_out` **strictly within that organization**.
-   - All pending queued messages for that contact are skipped automatically.
+3. **Strict Zero-Default Configuration**:
+   - The backend and frontend fail immediately on startup if any required environment variable is omitted.
+   - No hardcoded backend URLs or fallback secret keys exist anywhere in the code.
 
 ---
 
-## 🛠️ Required Environment Variables
+## Local Development
 
-All variables are strictly validated on server startup with **zero fallback defaults**.
+### Prerequisites
+- Node.js >= 20
+- PostgreSQL database (Supabase instance)
+- Meta WhatsApp Cloud API credentials
 
-### Backend (`backend/.env`)
-
-```env
-NODE_ENV=production
-PORT=4000
-DATABASE_URL=postgresql://postgres:[PASSWORD]@[HOST]:[PORT]/postgres?sslmode=require
-SUPABASE_URL=https://[YOUR_PROJECT_ID].supabase.co
-SUPABASE_SERVICE_ROLE_KEY=[YOUR_SUPABASE_SERVICE_ROLE_KEY]
-ENCRYPTION_KEY=[32_BYTE_BASE64_ENCODED_KEY]
-META_APP_ID=[YOUR_META_APP_ID]
-META_APP_SECRET=[YOUR_META_APP_SECRET]
-WEBHOOK_VERIFY_TOKEN=[YOUR_RANDOM_SECURE_TOKEN]
-CRON_SECRET=[YOUR_RANDOM_CRON_SECRET]
-FRONTEND_ORIGIN=https://growthflow-frontend.onrender.com
-```
-
-### Frontend (`frontend/.env.production`)
-
-```env
-VITE_API_URL=https://growthflow-backend.onrender.com
-VITE_SUPABASE_URL=https://[YOUR_PROJECT_ID].supabase.co
-VITE_SUPABASE_ANON_KEY=[YOUR_SUPABASE_ANON_KEY]
-```
-
----
-
-## 📱 Meta Setup Guide
-
-1. **Meta Developer App**:
-   - Create a **Business App** in [Meta Developers](https://developers.facebook.com).
-   - Set app status to **Live** (published).
-
-2. **WhatsApp Business Account (WABA)**:
-   - Add a valid payment method under **WhatsApp Manager &rarr; Billing**.
-
-3. **System User & Permanent Access Token**:
-   - In [Meta Business Settings](https://business.facebook.com/settings) &rarr; **System Users**, create an Admin system user.
-   - Assign full control over the App and WhatsApp Business Account.
-   - Generate a token with expiration set to **Never** and check permissions:
-     - `whatsapp_business_messaging`
-     - `whatsapp_business_management`
-
-4. **Webhooks Setup**:
-   - In Meta Developer Console under **WhatsApp &rarr; Configuration**:
-     - **Callback URL**: `https://<YOUR_BACKEND_URL>/webhooks/whatsapp`
-     - **Verify Token**: Must match `WEBHOOK_VERIFY_TOKEN` in your `.env`.
-   - Under **Webhook fields**, subscribe to:
-     - `messages`
-     - `message_template_status_update`
-
----
-
-## 🧪 Testing
-
-To run the unit and integration tests:
-
+### Backend Setup
 ```bash
 cd backend
-npm test
+cp .env.example .env
+# Fill in your database and Supabase keys in .env
+npm install
+npm run dev
 ```
+
+### Frontend Setup
+```bash
+cd frontend
+cp .env.example .env
+# Fill in VITE_API_URL and Supabase credentials
+npm install
+npm run dev
+```
+
+### Running Tests
+```bash
+npm --prefix backend test
+```
+
+---
+
+## Deployment on Render (Blueprint)
+
+GrowthFlow includes a ready-to-deploy [`render.yaml`](./render.yaml) blueprint consisting of two services:
+1. **`growthflow-backend`** (Node.js Web Service)
+   - Health check endpoint: `/healthz`
+   - Build command: `npm install --include=dev && npm run build`
+   - Start command: `node dist/index.js`
+2. **`growthflow-frontend`** (Static Site)
+   - Build command: `npm install && npm run build`
+   - Publish path: `dist`
+   - Rewrite rule: `/*` -> `/index.html`
+
+### Required Environment Variables
+
+#### Backend (`growthflow-backend`)
+| Variable | Value / Description |
+| :--- | :--- |
+| `APP_BRAND` | Set to `growthflow` (preset in blueprint) |
+| `NODE_ENV` | `production` |
+| `DATABASE_URL` | Supabase pooler connection string (port 6543) with `?sslmode=require` |
+| `SUPABASE_URL` | `https://<YOUR_PROJECT_ID>.supabase.co` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role secret |
+| `SUPABASE_JWKS_URL` | `https://<YOUR_PROJECT_ID>.supabase.co/auth/v1/.well-known/jwks.json` |
+| `ENCRYPTION_KEY` | 32-byte base64 string for encrypting WhatsApp API credentials |
+| `META_APP_ID` | Your Meta App ID for GrowthFlow |
+| `META_APP_SECRET` | Your Meta App Secret |
+| `WEBHOOK_VERIFY_TOKEN` | Unique verification token configured in Meta App Webhook settings |
+| `CRON_SECRET` | Secret token for triggering `/internal/tick` |
+| `FRONTEND_ORIGIN` | Comma-separated list of allowed origins (e.g. `https://growthflow-frontend.onrender.com`) |
+
+#### Frontend (`growthflow-frontend`)
+| Variable | Value / Description |
+| :--- | :--- |
+| `VITE_BRAND` | `growthflow` |
+| `VITE_API_URL` | URL of the deployed `growthflow-backend` web service |
+| `VITE_SUPABASE_URL` | `https://<YOUR_PROJECT_ID>.supabase.co` |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anonymous public key |
+
+---
+
+## Automated Scheduler (Cron Tick)
+
+To process scheduled campaigns, automated sequence steps, and stuck messages, set up a recurring cron job that pings the backend every minute:
+
+- **Method**: `POST`
+- **URL**: `https://<growthflow-backend-url>/internal/tick`
+- **Header**: `X-Cron-Secret: <YOUR_CRON_SECRET>`
+- **Schedule**: Every minute (`* * * * *`)
+- **Recommended Tools**: [cron-job.org](https://cron-job.org) or Supabase `pg_cron`.

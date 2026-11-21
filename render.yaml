@@ -33,4 +33,5 @@ services:
       - { key: VITE_API_URL, sync: false }
       - { key: VITE_SUPABASE_URL, sync: false }
       - { key: VITE_SUPABASE_ANON_KEY, sync: false }
+      - { key: VITE_BRAND, value: growthflow }
 
