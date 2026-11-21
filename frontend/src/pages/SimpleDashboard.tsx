@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../lib/api';
+import { WhatsAppSetupModal } from '../components/WhatsAppSetupModal';
 import {
   BarChart3,
   Send,
@@ -19,11 +20,13 @@ import {
   Play,
   Pause,
   XCircle,
+  Smartphone,
+  Sparkles,
 } from 'lucide-react';
 
 export default function SimpleDashboard() {
   const navigate = useNavigate();
-  const { currentOrg, whatsAppStatus } = useAuth();
+  const { currentOrg, whatsAppStatus, updateWhatsAppStatusLocally } = useAuth();
 
   const [stats, setStats] = useState<any>(null);
   const [campaigns, setCampaigns] = useState<any[]>([]);
@@ -34,6 +37,7 @@ export default function SimpleDashboard() {
   const [loading, setLoading] = useState(true);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showConnectModal, setShowConnectModal] = useState(false);
 
   // 1. Fetch Dashboard Overview
   const fetchDashboardData = async () => {
@@ -210,7 +214,41 @@ export default function SimpleDashboard() {
         </div>
       ))}
 
-      {/* 4 Modern Stat Tiles matching Mockup */}
+      {/* WhatsApp Connection State: If not connected, show prominent Connect CTA */}
+      {!account.is_connected && (
+        <div className="card p-6 sm:p-8 bg-gradient-to-br from-[#FAF8F2] via-white to-[#F5F2E9] border-2 border-[#D4AF37]/50 rounded-3xl shadow-sm relative overflow-hidden">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-[#1E2B16] text-[#D4AF37] border border-[#D4AF37]/40 flex items-center justify-center shrink-0 shadow-md">
+                <Smartphone size={24} />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base sm:text-lg font-extrabold text-[#111827]">
+                    Connect Your WhatsApp Business Account
+                  </h2>
+                  <span className="bg-[#D4AF37]/20 text-[#1E2B16] text-[10px] font-bold px-2 py-0.5 rounded-full border border-[#D4AF37]/40">
+                    Required for Live Sending
+                  </span>
+                </div>
+                <p className="text-xs text-gray-600 max-w-xl leading-relaxed">
+                  Connect your Meta WhatsApp Cloud API credentials (Phone Number ID, WABA ID, and Permanent Access Token) to unlock live contact syncing, broadcasting, templates, and analytics.
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowConnectModal(true)}
+              className="btn-primary shrink-0 px-5 py-3 text-xs font-bold rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#E5C048] text-[#111827] hover:brightness-105 shadow-md flex items-center gap-2 transition-all cursor-pointer"
+            >
+              <Smartphone size={16} />
+              <span>Connect WhatsApp Now →</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 4 Modern Stat Tiles (Real live counts from database) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Tile 1: Total Contacts */}
         <div className="card p-5 bg-white border border-gray-100/90 shadow-sm rounded-2xl relative">
@@ -218,45 +256,45 @@ export default function SimpleDashboard() {
             <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
               <Users size={20} />
             </div>
-            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
-              ↑ 12%
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full">
+              Live
             </span>
           </div>
           <p className="text-xs font-semibold text-gray-500">Total Contacts</p>
           <p className="text-2xl sm:text-3xl font-black text-gray-900 mt-0.5">
-            {Number(contacts.total_contacts || contacts.active_contacts || 12540).toLocaleString()}
+            {Number(contacts.total_contacts || contacts.active_contacts || 0).toLocaleString()}
           </p>
         </div>
 
         {/* Tile 2: Messages Sent */}
         <div className="card p-5 bg-white border border-gray-100/90 shadow-sm rounded-2xl relative">
           <div className="flex items-center justify-between mb-3">
-            <div className="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-[#2D3A1E]/10 text-[#2D3A1E] flex items-center justify-center">
               <Send size={20} />
             </div>
-            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full">
-              ↑ 18%
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full">
+              Live
             </span>
           </div>
           <p className="text-xs font-semibold text-gray-500">Messages Sent</p>
           <p className="text-2xl sm:text-3xl font-black text-gray-900 mt-0.5">
-            {Number(overall.total_dispatched || 8750).toLocaleString()}
+            {Number(overall.total_dispatched || 0).toLocaleString()}
           </p>
         </div>
 
         {/* Tile 3: Delivered */}
         <div className="card p-5 bg-white border border-gray-100/90 shadow-sm rounded-2xl relative">
           <div className="flex items-center justify-between mb-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-[#D4AF37]/15 text-[#D4AF37] flex items-center justify-center">
               <CheckCircle size={20} />
             </div>
-            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
-              ↑ 97%
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full">
+              Live
             </span>
           </div>
           <p className="text-xs font-semibold text-gray-500">Delivered</p>
           <p className="text-2xl sm:text-3xl font-black text-gray-900 mt-0.5">
-            {Number(overall.total_delivered || 8520).toLocaleString()}
+            {Number(overall.total_delivered || 0).toLocaleString()}
           </p>
         </div>
 
@@ -266,13 +304,13 @@ export default function SimpleDashboard() {
             <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center">
               <AlertCircle size={20} />
             </div>
-            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full">
-              ↓ 3%
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full">
+              Live
             </span>
           </div>
           <p className="text-xs font-semibold text-gray-500">Failed</p>
           <p className="text-2xl sm:text-3xl font-black text-gray-900 mt-0.5">
-            {Number(overall.total_failed || 230).toLocaleString()}
+            {Number(overall.total_failed || 0).toLocaleString()}
           </p>
         </div>
       </div>
@@ -372,31 +410,36 @@ export default function SimpleDashboard() {
             </div>
 
             <div className="space-y-3.5">
-              {(campaigns.length > 0 ? campaigns.slice(0, 3) : [
-                { name: 'Festive Offer - Diwali', sent: '8,750 recipients', time: '2h ago' },
-                { name: 'New Collection Launch', sent: '5,200 recipients', time: '1d ago' },
-                { name: 'Customer Follow-up', sent: '3,100 recipients', time: '2d ago' },
-              ]).map((c: any, idx: number) => (
-                <div key={idx} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/80 hover:bg-slate-100/70 transition">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center shrink-0">
-                      <Send size={15} />
+              {campaigns.length > 0 ? (
+                campaigns.slice(0, 3).map((c: any, idx: number) => (
+                  <div key={idx} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/80 hover:bg-slate-100/70 transition">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-[#2D3A1E]/10 text-[#2D3A1E] flex items-center justify-center shrink-0">
+                        <Send size={15} />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-gray-900 truncate max-w-[140px]">{c.name}</p>
+                        <p className="text-[10px] text-gray-500">
+                          {c.total_recipients ? `${c.total_recipients} recipients` : 'Broadcast'}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs font-bold text-gray-900 truncate max-w-[140px]">{c.name}</p>
-                      <p className="text-[10px] text-gray-500">
-                        {c.total ? `${c.total} recipients` : c.sent || 'Broadcast'}
+                    <div className="text-right">
+                      <span className="text-[10px] font-bold text-[#1E2B16] bg-[#D4AF37]/25 px-2 py-0.5 rounded-full">
+                        {c.status || 'Active'}
+                      </span>
+                      <p className="text-[9px] text-gray-400 mt-0.5">
+                        {c.created_at ? new Date(c.created_at).toLocaleDateString() : 'Recent'}
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
-                      Completed
-                    </span>
-                    <p className="text-[9px] text-gray-400 mt-0.5">{c.created_at ? new Date(c.created_at).toLocaleDateString() : c.time || 'Today'}</p>
-                  </div>
+                ))
+              ) : (
+                <div className="p-6 text-center border border-dashed border-gray-200 rounded-2xl bg-gray-50/50">
+                  <p className="text-xs font-medium text-gray-500">No campaigns launched yet.</p>
+                  <p className="text-[11px] text-gray-400 mt-1">Connect WhatsApp and send your first broadcast.</p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
 
@@ -669,6 +712,22 @@ export default function SimpleDashboard() {
           </div>
         </div>
       )}
+
+      {/* WhatsApp Setup Modal */}
+      <WhatsAppSetupModal
+        isOpen={showConnectModal}
+        onClose={() => setShowConnectModal(false)}
+        onSuccess={(data) => {
+          setShowConnectModal(false);
+          updateWhatsAppStatusLocally({
+            isConnected: true,
+            displayPhone: data.display_phone,
+            verifiedName: data.verified_name,
+            qualityRating: data.quality_rating,
+          });
+          fetchDashboardData();
+        }}
+      />
     </div>
   );
 }
