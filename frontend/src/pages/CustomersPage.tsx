@@ -32,6 +32,7 @@ export default function CustomersPage() {
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingContact, setEditingContact] = useState<any | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -73,9 +74,11 @@ export default function CustomersPage() {
     const name = c.name || c.display_name || c.whatsapp_e164;
     const mobile = c.whatsapp_e164 || c.mobile_number;
     if (window.confirm(`Are you sure you want to delete customer "${name}" (${mobile})?`)) {
-      api.contacts.delete(c.id || mobile).then(() => {
+      api.contacts.delete(c.id).then(() => {
         refreshList();
         showToast(`Deleted customer "${name}"`);
+      }).catch((err) => {
+        alert(err.message || 'Failed to delete customer');
       });
     }
   };
@@ -252,11 +255,22 @@ export default function CustomersPage() {
                             href={`https://wa.me/${phone.replace(/[^0-9]/g, '')}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-xs font-bold text-whatsapp-teal hover:underline px-2 py-1 rounded hover:bg-emerald-50 transition"
+                            className="text-xs font-bold text-teal-800 hover:underline px-2 py-1 rounded hover:bg-emerald-50 transition"
                             title="Open WhatsApp Chat"
                           >
                             Chat ↗
                           </a>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingContact(c);
+                              setShowAddModal(true);
+                            }}
+                            className="text-gray-500 hover:text-gray-900 p-1.5 rounded hover:bg-gray-100 transition text-xs font-semibold"
+                            title="Edit customer"
+                          >
+                            Edit
+                          </button>
                           <button
                             type="button"
                             onClick={() => handleDelete(c)}
@@ -326,11 +340,16 @@ export default function CustomersPage() {
       {/* Add / Update Modal */}
       {showAddModal && (
         <AddModal
-          onClose={() => setShowAddModal(false)}
-          onSaved={(c) => {
+          initialData={editingContact}
+          onClose={() => {
             setShowAddModal(false);
+            setEditingContact(null);
+          }}
+          onSaved={() => {
+            setShowAddModal(false);
+            setEditingContact(null);
             refreshList();
-            showToast(`Saved customer ${c.name} (${c.whatsapp_e164})`);
+            showToast(editingContact ? 'Customer updated successfully' : 'Customer saved successfully');
           }}
         />
       )}
@@ -350,11 +369,12 @@ export default function CustomersPage() {
   );
 }
 
-function AddModal({ onClose, onSaved }: { onClose: () => void; onSaved: (c: any) => void }) {
-  const [name, setName] = useState('');
-  const [mobile, setMobile] = useState('');
-  const [email, setEmail] = useState('');
+function AddModal({ initialData, onClose, onSaved }: { initialData?: any; onClose: () => void; onSaved: (c: any) => void }) {
+  const [name, setName] = useState(initialData?.name || initialData?.display_name || '');
+  const [mobile, setMobile] = useState(initialData?.whatsapp_e164 || initialData?.phone_raw || initialData?.mobile_number || '');
+  const [email, setEmail] = useState(initialData?.email || '');
   const [tags, setTags] = useState('VIP, Direct Customer');
+  const [saving, setSaving] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -365,6 +385,7 @@ function AddModal({ onClose, onSaved }: { onClose: () => void; onSaved: (c: any)
       if (cleaned.length === 10) cleaned = '+91' + cleaned;
     }
 
+    setSaving(true);
     api.contacts
       .create({
         name: name.trim(),
@@ -372,14 +393,18 @@ function AddModal({ onClose, onSaved }: { onClose: () => void; onSaved: (c: any)
         email: email.trim() || undefined,
         consent_confirmed: true,
       })
-      .then((res: any) => onSaved(res.data || res));
+      .then((res: any) => onSaved(res.data || res))
+      .catch((err: any) => {
+        alert(err.message || 'Failed to save customer');
+      })
+      .finally(() => setSaving(false));
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="card w-full max-w-md p-6 space-y-4 shadow-xl">
         <div className="flex items-center justify-between border-b pb-3">
-          <h2 className="text-base font-bold text-gray-900">Add / Update Customer</h2>
+          <h2 className="text-base font-bold text-gray-900">{initialData ? 'Edit Customer' : 'Add / Update Customer'}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X size={18} />
           </button>
@@ -438,8 +463,8 @@ function AddModal({ onClose, onSaved }: { onClose: () => void; onSaved: (c: any)
             <button type="button" onClick={onClose} className="btn-secondary text-xs">
               Cancel
             </button>
-            <button type="submit" className="btn-primary text-xs">
-              Save Customer
+            <button type="submit" disabled={saving} className="btn-primary text-xs">
+              {saving ? 'Saving...' : 'Save Customer'}
             </button>
           </div>
         </form>

@@ -411,19 +411,30 @@ router.delete('/:id', async (req: Request, res: Response) => {
   let client;
   try {
     client = await pool.connect();
+    await client.query('BEGIN');
+
+    // Clean up associated child records first to satisfy foreign keys
+    await client.query(`DELETE FROM list_members WHERE contact_id = $1`, [req.params.id]);
+    await client.query(`DELETE FROM messages WHERE contact_id = $1 AND org_id = $2`, [req.params.id, orgId]);
+    await client.query(`DELETE FROM inbound_messages WHERE contact_id = $1 AND org_id = $2`, [req.params.id, orgId]);
+    await client.query(`DELETE FROM outbound_replies WHERE contact_id = $1 AND org_id = $2`, [req.params.id, orgId]);
+
     const { rowCount } = await client.query(
       `DELETE FROM contacts WHERE id = $1 AND org_id = $2`,
       [req.params.id, orgId]
     );
 
     if (rowCount === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({
         error: { code: 'NOT_FOUND', message: 'Contact not found' },
       });
     }
 
+    await client.query('COMMIT');
     return res.json({ data: { deleted: true } });
   } catch (err: any) {
+    if (client) await client.query('ROLLBACK');
     return res.status(500).json({
       error: { code: 'DATABASE_ERROR', message: err.message },
     });
