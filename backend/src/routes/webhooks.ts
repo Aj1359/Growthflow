@@ -8,18 +8,21 @@ import { logger } from '../config/logger.js';
 
 const router = Router();
 
-// GET /webhooks/whatsapp — Handshake verification using strict WEBHOOK_VERIFY_TOKEN
-router.get('/whatsapp', (req: Request, res: Response) => {
+// GET /webhooks/whatsapp & /webhooks/meta — Handshake verification
+const handleVerification = (req: Request, res: Response) => {
   const query = req.query as any;
   const result = verifyWebhookChallenge(query, env.WEBHOOK_VERIFY_TOKEN);
   if (result.isValid && result.challenge) {
     return res.status(200).send(result.challenge);
   }
   return res.status(403).send('Forbidden');
-});
+};
 
-// POST /webhooks/whatsapp — Incoming Meta events
-router.post('/whatsapp', async (req: Request, res: Response) => {
+router.get('/whatsapp', handleVerification);
+router.get('/meta', handleVerification);
+
+// POST /webhooks/whatsapp & /webhooks/meta — Incoming Meta events
+const handleWebhookPost = async (req: Request, res: Response) => {
   const signature = req.headers['x-hub-signature-256'] as string | undefined;
   const rawBody: Buffer | string = (req as any).rawBody || JSON.stringify(req.body);
 
@@ -345,6 +348,9 @@ router.post('/whatsapp', async (req: Request, res: Response) => {
       if (dbClient) dbClient.release();
     }
   });
-});
+};
+
+router.post('/whatsapp', handleWebhookPost);
+router.post('/meta', handleWebhookPost);
 
 export default router;
