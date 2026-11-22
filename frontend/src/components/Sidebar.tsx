@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   Users,
@@ -32,6 +32,7 @@ const iconMap: Record<string, React.ElementType> = {
 export function Sidebar() {
   const { signOut, user, currentOrg } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSignOut = async () => {
     await signOut();
@@ -39,6 +40,7 @@ export function Sidebar() {
   };
 
   const isGrowthFlow = currentBrand.id === 'growthflow';
+  const currentPathWithSearch = location.pathname + location.search;
 
   return (
     <aside
@@ -97,20 +99,24 @@ export function Sidebar() {
       <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
         {currentBrand.sidebarItems.map(({ to, label, icon }) => {
           const Icon = iconMap[icon] || LayoutDashboard;
+          const isItemActive = to.includes('?')
+            ? currentPathWithSearch === to
+            : location.pathname === to && !location.search;
+
           return (
             <NavLink
               key={to}
               to={to}
-              className={({ isActive }) =>
+              className={
                 cn(
                   'flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all',
-                  isActive
+                  isItemActive
                     ? 'text-white font-bold shadow-sm'
                     : 'text-white/70 hover:bg-white/10 hover:text-white'
                 )
               }
-              style={({ isActive }) =>
-                isActive
+              style={
+                isItemActive
                   ? {
                       background: 'var(--sidebar-active-bg)',
                       border: '1px solid rgba(212, 175, 55, 0.35)',
