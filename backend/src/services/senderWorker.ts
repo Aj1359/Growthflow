@@ -132,40 +132,29 @@ export async function processSendingBatch(): Promise<number> {
       const components: any[] = [];
 
       // 1. Header Media (supports Image, Video, Document)
-      if (msg.media_id) {
-        const isUrl = typeof msg.media_id === 'string' && (msg.media_id.startsWith('http://') || msg.media_id.startsWith('https://'));
-        const mediaParam = isUrl ? { link: msg.media_id } : { id: msg.media_id };
-        const hType = (msg.header_type || msg.header_format || 'image').toLowerCase();
-        if (hType === 'video') {
-          components.push({
-            type: 'header',
-            parameters: [
-              {
-                type: 'video',
-                video: mediaParam,
-              },
-            ],
-          });
-        } else if (hType === 'document') {
-          components.push({
-            type: 'header',
-            parameters: [
-              {
-                type: 'document',
-                document: isUrl ? { link: msg.media_id, filename: 'document.pdf' } : { id: msg.media_id, filename: 'document.pdf' },
-              },
-            ],
-          });
-        } else {
-          components.push({
-            type: 'header',
-            parameters: [
-              {
-                type: 'image',
-                image: mediaParam,
-              },
-            ],
-          });
+      const hType = (msg.header_type || msg.header_format || '').toLowerCase();
+      if (hType === 'image' || hType === 'video' || hType === 'document') {
+        const fallbackImageUrl = 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=800';
+        const rawMedia = msg.media_id || (hType === 'image' ? fallbackImageUrl : null);
+        if (rawMedia) {
+          const isUrl = typeof rawMedia === 'string' && (rawMedia.startsWith('http://') || rawMedia.startsWith('https://'));
+          const mediaParam = isUrl ? { link: rawMedia } : { id: rawMedia };
+          if (hType === 'video') {
+            components.push({
+              type: 'header',
+              parameters: [{ type: 'video', video: mediaParam }],
+            });
+          } else if (hType === 'document') {
+            components.push({
+              type: 'header',
+              parameters: [{ type: 'document', document: isUrl ? { link: rawMedia, filename: 'document.pdf' } : { id: rawMedia, filename: 'document.pdf' } }],
+            });
+          } else {
+            components.push({
+              type: 'header',
+              parameters: [{ type: 'image', image: mediaParam }],
+            });
+          }
         }
       }
 
