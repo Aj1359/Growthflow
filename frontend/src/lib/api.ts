@@ -154,6 +154,8 @@ export const api = {
     list: () => request<any[]>('/api/replies'),
     send: (data: { to: string; text: string; contact_id?: number }) =>
       request<any>('/api/replies/send', { method: 'POST', body: JSON.stringify(data) }),
+    saveContact: (data: { phone: string; name?: string }) =>
+      request<any>('/api/replies/save-contact', { method: 'POST', body: JSON.stringify(data) }),
   },
 
   // ── Settings ────────────────────────────────────────────────────────────────

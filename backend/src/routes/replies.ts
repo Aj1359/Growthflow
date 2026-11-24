@@ -45,10 +45,11 @@ router.get('/', async (req: Request, res: Response) => {
       `SELECT im.id, im.org_id, im.contact_id, im.from_e164, im.wa_message_id,
               im.body, im.media, im.is_stop, im.handled, im.received_at, im.forwarded_at,
               im.matched_message_id, im.matched_campaign_id,
-              c.name as contact_name,
+              COALESCE(c.name, im.from_e164) as contact_name,
+              (c.id IS NOT NULL) as is_saved_contact,
               camp.name as matched_campaign_name
        FROM inbound_messages im
-       LEFT JOIN contacts c ON im.contact_id = c.id
+       LEFT JOIN contacts c ON (im.contact_id = c.id OR (c.whatsapp_e164 = im.from_e164 AND c.org_id = im.org_id))
        LEFT JOIN campaigns camp ON im.matched_campaign_id = camp.id
        ${whereClause}
        ORDER BY im.received_at DESC
@@ -70,36 +71,100 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 /**
+ * POST /api/replies/save-contact
+ * Manually saves an inquiring phone number into permanent contacts
+ */
+router.post('/save-contact', async (req: Request, res: Response) => {
+  const orgId = getOrgId(req);
+  const { phone, name } = req.body;
+  if (!phone) {
+    return res.status(400).json({ error: { code: 'INVALID_INPUT', message: 'Phone number is required' } });
+  }
+  let client;
+  try {
+    client = await pool.connect();
+    const contactName = name?.trim() || phone;
+    const { rows } = await client.query(
+      `INSERT INTO contacts (org_id, name, whatsapp_e164, status, opt_in_confirmed_at, opt_in_source)
+       VALUES ($1, $2, $3, 'active', NOW(), 'manual_inquiry_save')
+       ON CONFLICT (org_id, whatsapp_e164) DO UPDATE SET
+         name = EXCLUDED.name,
+         updated_at = NOW()
+       RETURNING *`,
+      [orgId, contactName, phone]
+    );
+    const newContact = rows[0];
+
+    // Link past inbound and outbound messages to this newly saved contact
+    await client.query(
+      `UPDATE inbound_messages SET contact_id = $1 WHERE org_id = $2 AND from_e164 = $3`,
+      [newContact.id, orgId, phone]
+    );
+    await client.query(
+      `UPDATE outbound_replies SET contact_id = $1 WHERE org_id = $2 AND to_e164 = $3`,
+      [newContact.id, orgId, phone]
+    );
+
+    return res.json({ data: { ...newContact, is_saved: true } });
+  } catch (err: any) {
+    return res.status(500).json({ error: { code: 'DATABASE_ERROR', message: err.message } });
+  } finally {
+    if (client) client.release();
+  }
+});
+
+/**
  * GET /api/replies/:contactId
- * Returns the full message thread for a contact:
+ * Returns the full message thread for a contact or phone number:
  * - Inbound messages
  * - Outbound replies sent from portal
  * - Campaign template messages sent
  */
 router.get('/:contactId', async (req: Request, res: Response) => {
   const orgId = getOrgId(req);
-  const contactId = parseInt(req.params.contactId, 10);
+  const param = req.params.contactId;
 
   let client;
   try {
     client = await pool.connect();
 
-    // 1. Fetch Contact info
-    const { rows: contactRows } = await client.query(
-      `SELECT id, name, whatsapp_e164, status FROM contacts WHERE id = $1 AND org_id = $2`,
-      [contactId, orgId]
-    );
-    if (contactRows.length === 0) {
-      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Contact not found' } });
+    // 1. Fetch Contact info (if saved) or synthesize for unsaved inquirers
+    let contact: any = null;
+    let phone = param;
+    let contactId: number | null = null;
+
+    if (/^\d+$/.test(param) && parseInt(param, 10) < 10000000000) {
+      const { rows } = await client.query(
+        `SELECT id, name, whatsapp_e164, status FROM contacts WHERE id = $1 AND org_id = $2`,
+        [parseInt(param, 10), orgId]
+      );
+      if (rows.length > 0) {
+        contact = { ...rows[0], is_saved: true };
+        phone = contact.whatsapp_e164;
+        contactId = contact.id;
+      }
     }
-    const contact = contactRows[0];
+
+    if (!contact) {
+      const { rows } = await client.query(
+        `SELECT id, name, whatsapp_e164, status FROM contacts WHERE whatsapp_e164 = $1 AND org_id = $2`,
+        [phone, orgId]
+      );
+      if (rows.length > 0) {
+        contact = { ...rows[0], is_saved: true };
+        phone = contact.whatsapp_e164;
+        contactId = contact.id;
+      } else {
+        contact = { id: null, name: phone, whatsapp_e164: phone, status: 'unsaved', is_saved: false };
+      }
+    }
 
     // 2. Fetch Inbound Messages
     const { rows: inbounds } = await client.query(
       `SELECT id, 'inbound' as direction, body, media, is_stop, handled, received_at as timestamp, wa_message_id
        FROM inbound_messages
-       WHERE contact_id = $1 AND org_id = $2`,
-      [contactId, orgId]
+       WHERE ((contact_id = $1 AND $1 IS NOT NULL) OR from_e164 = $2) AND org_id = $3`,
+      [contactId, phone, orgId]
     );
 
     // 3. Fetch Outbound 1-on-1 Replies
@@ -107,20 +172,24 @@ router.get('/:contactId', async (req: Request, res: Response) => {
       `SELECT id, 'outbound' as direction, body, null as media, false as is_stop, true as handled,
               created_at as timestamp, wa_message_id, status, error_message
        FROM outbound_replies
-       WHERE contact_id = $1 AND org_id = $2`,
-      [contactId, orgId]
+       WHERE ((contact_id = $1 AND $1 IS NOT NULL) OR to_e164 = $2) AND org_id = $3`,
+      [contactId, phone, orgId]
     );
 
     // 4. Fetch Campaign Template Broadcasts Sent
-    const { rows: campaignMsgs } = await client.query(
-      `SELECT m.id, 'campaign' as direction, t.name as body, null as media, false as is_stop, true as handled,
-              m.sent_at as timestamp, m.wa_message_id, m.status, m.error_message
-       FROM messages m
-       JOIN campaigns camp ON m.campaign_id = camp.id
-       JOIN templates t ON camp.template_id = t.id
-       WHERE m.contact_id = $1 AND m.org_id = $2 AND m.sent_at IS NOT NULL`,
-      [contactId, orgId]
-    );
+    let campaignMsgs: any[] = [];
+    if (contactId) {
+      const { rows } = await client.query(
+        `SELECT m.id, 'campaign' as direction, t.name as body, null as media, false as is_stop, true as handled,
+                m.sent_at as timestamp, m.wa_message_id, m.status, m.error_message
+         FROM messages m
+         JOIN campaigns camp ON m.campaign_id = camp.id
+         JOIN templates t ON camp.template_id = t.id
+         WHERE m.contact_id = $1 AND m.org_id = $2 AND m.sent_at IS NOT NULL`,
+        [contactId, orgId]
+      );
+      campaignMsgs = rows;
+    }
 
     // Combine and sort chronologically
     const thread = [...inbounds, ...outbounds, ...campaignMsgs].sort(
@@ -154,7 +223,7 @@ router.get('/:contactId', async (req: Request, res: Response) => {
  */
 router.post('/:contactId/send', upload.any(), async (req: Request, res: Response) => {
   const orgId = getOrgId(req);
-  const contactId = parseInt(req.params.contactId, 10);
+  const param = req.params.contactId;
   const { text, type: requestedType, media_url } = req.body;
 
   const uploadedFile = (req.files && Array.isArray(req.files) && req.files.length > 0)
@@ -169,22 +238,31 @@ router.post('/:contactId/send', upload.any(), async (req: Request, res: Response
   try {
     client = await pool.connect();
 
-    // 1. Fetch Contact
-    const { rows: cRows } = await client.query(
-      `SELECT id, whatsapp_e164 FROM contacts WHERE id = $1 AND org_id = $2`,
-      [contactId, orgId]
-    );
-    if (cRows.length === 0) {
-      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Contact not found' } });
+    // 1. Fetch Contact or determine recipient phone number
+    let to = req.body.to || req.body.to_e164;
+    let contactId: number | null = null;
+
+    if (/^\d+$/.test(param) && parseInt(param, 10) < 10000000000) {
+      const { rows: cRows } = await client.query(
+        `SELECT id, whatsapp_e164 FROM contacts WHERE id = $1 AND org_id = $2`,
+        [parseInt(param, 10), orgId]
+      );
+      if (cRows.length > 0) {
+        contactId = cRows[0].id;
+        to = cRows[0].whatsapp_e164;
+      }
     }
-    const to = cRows[0].whatsapp_e164;
+
+    if (!to) {
+      to = param;
+    }
 
     // 2. Enforce 24-hour customer care window
     const { rows: windowRows } = await client.query(
       `SELECT id, received_at FROM inbound_messages
-       WHERE contact_id = $1 AND org_id = $2 AND received_at >= NOW() - INTERVAL '24 hours'
+       WHERE ((contact_id = $1 AND $1 IS NOT NULL) OR from_e164 = $2) AND org_id = $3 AND received_at >= NOW() - INTERVAL '24 hours'
        ORDER BY received_at DESC LIMIT 1`,
-      [contactId, orgId]
+      [contactId, to, orgId]
     );
 
     if (windowRows.length === 0) {

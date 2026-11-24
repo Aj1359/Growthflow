@@ -269,17 +269,20 @@ const handleWebhookPost = async (req: Request, res: Response) => {
                 continue;
               }
 
-              // 1. Upsert contact if unknown
-              const contactName = value.contacts?.find((c: any) => c.wa_id === msg.from)?.profile?.name || fromE164;
-              const contactRes = await dbClient.query(
-                `INSERT INTO contacts (org_id, name, whatsapp_e164, status, opt_in_confirmed_at, opt_in_source)
-                 VALUES ($1, $2, $3, 'active', NOW(), 'inbound_message')
-                 ON CONFLICT (org_id, whatsapp_e164) DO UPDATE SET
-                   updated_at = NOW()
-                 RETURNING id`,
-                [orgId, contactName, fromE164]
+              // 1. Check if sender is an existing saved contact (do NOT auto-save unknown inquirers)
+              let contactId: number | null = null;
+              const existingContact = await dbClient.query(
+                `SELECT id FROM contacts WHERE org_id = $1 AND whatsapp_e164 = $2`,
+                [orgId, fromE164]
               );
-              const contactId = contactRes.rows[0]?.id || null;
+              if (existingContact.rows.length > 0) {
+                contactId = existingContact.rows[0].id;
+                await dbClient.query(`UPDATE contacts SET updated_at = NOW() WHERE id = $1`, [contactId]);
+              } else {
+                // Do NOT automatically create contact for unknown inquirers.
+                // The user can manually choose to save them via "+ Save to Contacts" in Replies.
+                contactId = null;
+              }
 
               // 2. Link to latest message sent to this contact
               let matchedMessageId: number | null = null;

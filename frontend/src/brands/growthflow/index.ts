@@ -14,7 +14,6 @@ export const growthflowBrand: BrandConfig = {
     { to: '/customers', label: 'Contacts', icon: 'Users' },
     { to: '/posts', label: 'Templates', icon: 'FileText' },
     { to: '/replies', label: 'Replies', icon: 'MessageSquare' },
-    { to: '/dashboard?tab=reports', label: 'Reports', icon: 'BarChart2' },
     { to: '/profile', label: 'Settings', icon: 'Settings' },
   ],
   tokens: {

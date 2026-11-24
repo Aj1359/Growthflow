@@ -8,6 +8,7 @@ import {
   Clock,
   Send,
   User,
+  UserPlus,
   RefreshCw,
   Forward,
   ShieldCheck,
@@ -20,7 +21,7 @@ import {
 } from 'lucide-react';
 
 interface ConversationGroup {
-  contact_id: number;
+  contact_id: number | null;
   contact_name: string;
   from_e164: string;
   last_message: string;
@@ -28,11 +29,12 @@ interface ConversationGroup {
   unhandled_count: number;
   matched_campaign_name?: string;
   is_stop?: boolean;
+  is_saved_contact?: boolean;
 }
 
 export default function RepliesChatPage() {
   const [inquiries, setInquiries] = useState<any[]>([]);
-  const [selectedContactId, setSelectedContactId] = useState<number | null>(null);
+  const [selectedContactId, setSelectedContactId] = useState<number | string | null>(null);
   const [threadData, setThreadData] = useState<any>(null);
   const [replyText, setReplyText] = useState('');
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
@@ -53,7 +55,7 @@ export default function RepliesChatPage() {
       const existing = map.get(key);
       if (!existing) {
         map.set(key, {
-          contact_id: inq.contact_id,
+          contact_id: inq.contact_id || null,
           contact_name: inq.contact_name || inq.from_e164,
           from_e164: inq.from_e164,
           last_message: inq.body,
@@ -61,6 +63,7 @@ export default function RepliesChatPage() {
           unhandled_count: isUnhandled ? 1 : 0,
           matched_campaign_name: inq.matched_campaign_name,
           is_stop: inq.is_stop,
+          is_saved_contact: Boolean(inq.is_saved_contact),
         });
       } else {
         if (isUnhandled) {
@@ -98,8 +101,8 @@ export default function RepliesChatPage() {
       const data = await api.replies.list();
       setInquiries(data);
       if (data.length > 0 && selectedContactId === null) {
-        const firstContact = data.find((i: any) => i.contact_id);
-        if (firstContact) setSelectedContactId(firstContact.contact_id);
+        const first = data[0];
+        setSelectedContactId(first.contact_id || first.from_e164);
       }
     } catch (err: any) {
       console.warn('Failed loading inquiries:', err.message);
@@ -116,10 +119,10 @@ export default function RepliesChatPage() {
   }, []);
 
   // 2. Fetch Active Thread
-  const fetchThread = async (contactId: number) => {
+  const fetchThread = async (contactId: number | string) => {
     try {
       setThreadLoading(true);
-      const res: any = await fetch(`${API_BASE}/api/replies/${contactId}`, {
+      const res: any = await fetch(`${API_BASE}/api/replies/${encodeURIComponent(String(contactId))}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('sb-token') || ''}`,
           'X-Org-Id': localStorage.getItem('active-org-id') || '',
@@ -141,6 +144,27 @@ export default function RepliesChatPage() {
       fetchThread(selectedContactId);
     }
   }, [selectedContactId]);
+
+  const handleSaveToContacts = async () => {
+    const phone = threadData?.contact?.whatsapp_e164;
+    if (!phone) return;
+    const defaultName = threadData?.contact?.name && threadData.contact.name !== phone ? threadData.contact.name : '';
+    const inputName = window.prompt(`Enter customer name to save ${phone} into Contacts:`, defaultName);
+    if (inputName === null) return;
+
+    try {
+      const res = await api.replies.saveContact({ phone, name: inputName.trim() || phone });
+      setNotification({ msg: `Saved "${inputName.trim() || phone}" into Contacts!`, type: 'success' });
+      await fetchInquiries();
+      if (res.data?.id) {
+        setSelectedContactId(res.data.id);
+      } else {
+        await fetchThread(selectedContactId!);
+      }
+    } catch (err: any) {
+      setNotification({ msg: `Failed saving contact: ${err.message}`, type: 'error' });
+    }
+  };
 
   const handleSendReply = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -341,18 +365,40 @@ export default function RepliesChatPage() {
         {selectedContactId && threadData ? (
           <>
             {/* Thread Header */}
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-white shadow-sm">
+            <div className="p-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3 bg-white shadow-sm">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-sm">
+                <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-sm shrink-0">
                   {(threadData.contact?.name || 'C')[0]}
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-gray-900">{threadData.contact?.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-gray-900">{threadData.contact?.name || threadData.contact?.whatsapp_e164}</h3>
+                    {!threadData.contact?.is_saved ? (
+                      <span className="text-[10px] bg-amber-50 text-amber-800 font-bold px-2 py-0.5 rounded-full border border-amber-200">
+                        Unsaved Inquiry
+                      </span>
+                    ) : (
+                      <span className="text-[10px] bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-200">
+                        Saved Contact
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs font-mono text-gray-500">{threadData.contact?.whatsapp_e164}</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5">
+                {!threadData.contact?.is_saved && (
+                  <button
+                    onClick={handleSaveToContacts}
+                    className="text-xs font-bold px-3 py-1.5 rounded-xl bg-[#D4AF37] hover:bg-[#B5952F] text-gray-950 flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+                    title="Save this person into customer contacts list"
+                  >
+                    <UserPlus size={14} />
+                    <span>Save to Contacts</span>
+                  </button>
+                )}
+
                 {threadData.is_window_open ? (
                   <span className="text-xs font-bold text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full flex items-center gap-1.5">
                     <ShieldCheck size={14} /> 24h Customer Care Window Active (Free)
