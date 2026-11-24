@@ -168,8 +168,19 @@ export async function processSendingBatch(): Promise<number> {
       const varMatches = (bodyComp?.text || '').match(/\{\{(\d+)\}\}/g) || [];
 
       for (let idx = 0; idx < varMatches.length; idx++) {
-        // First variable {{1}} maps to contact name or firstName
-        const textVal = idx === 0 ? firstName : msg.campaign_vars?.[String(idx + 1)] || msg.contact_name || '';
+        const key = String(idx + 1);
+        let textVal = '';
+        if (idx === 0) {
+          textVal = firstName || msg.contact_name || 'Customer';
+        } else {
+          textVal = msg.campaign_vars?.[key] || '';
+        }
+
+        // Meta Cloud API strictly forbids empty string parameters (#131008)
+        if (!textVal || String(textVal).trim() === '') {
+          textVal = idx === 1 ? 'special offer' : (idx === 2 ? 'SPECIAL' : 'valued customer');
+        }
+
         bodyParams.push({
           type: 'text',
           text: String(textVal).slice(0, 1024),
