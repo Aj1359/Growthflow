@@ -100,7 +100,7 @@ router.get('/selectable', async (req: Request, res: Response) => {
       query += ` JOIN list_members lm ON c.id = lm.contact_id AND lm.list_id = $2`;
     }
 
-    query += ` WHERE c.org_id = $1 AND c.status = 'active' AND c.opt_in_confirmed_at IS NOT NULL ORDER BY c.name ASC`;
+    query += ` WHERE c.org_id = $1 AND c.status = 'active' ORDER BY c.name ASC`;
 
     const { rows } = await client.query(query, params);
     return res.json({ data: rows, total: rows.length });

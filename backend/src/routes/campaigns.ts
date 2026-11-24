@@ -283,8 +283,8 @@ router.post('/', upload.any(), async (req: Request, res: Response) => {
       }
     }
 
-    // 4. Fetch Selectable Contacts (status='active' AND opt_in_confirmed_at IS NOT NULL)
-    let contactQuery = `SELECT id, whatsapp_e164 FROM contacts WHERE org_id = $1 AND status = 'active' AND opt_in_confirmed_at IS NOT NULL`;
+    // 4. Fetch Selectable Contacts (status='active')
+    let contactQuery = `SELECT id, whatsapp_e164 FROM contacts WHERE org_id = $1 AND status = 'active'`;
     const qParams: any[] = [orgId];
 
     if (explicitContactIds.length > 0) {
@@ -296,7 +296,7 @@ router.post('/', upload.any(), async (req: Request, res: Response) => {
         SELECT c.id, c.whatsapp_e164
         FROM contacts c
         JOIN list_members lm ON c.id = lm.contact_id
-        WHERE c.org_id = $1 AND lm.list_id = $2 AND c.status = 'active' AND c.opt_in_confirmed_at IS NOT NULL
+        WHERE c.org_id = $1 AND lm.list_id = $2 AND c.status = 'active'
       `;
     }
 
