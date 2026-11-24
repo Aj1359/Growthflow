@@ -81,16 +81,24 @@ export function TopBar() {
           {whatsAppStatus.isConnected ? (
             <div
               onClick={() => setShowSetupModal(true)}
-              className="flex items-center gap-2 text-xs text-[#1E2B16] bg-[#2E3E24]/10 border border-[#D4AF37]/40 px-3 py-1.5 rounded-xl cursor-pointer hover:bg-[#2E3E24]/15 transition shadow-xs"
-              title="Click to view WhatsApp Business profile"
+              className="flex items-center gap-2.5 text-xs text-[#1E2B16] bg-emerald-50/90 border border-emerald-300 px-3 py-1.5 rounded-xl cursor-pointer hover:bg-emerald-100/70 transition shadow-xs"
+              title="WhatsApp Cloud API Connected (Fancy Jewellers)"
             >
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <Smartphone size={14} className="text-[#2D3A1E]" />
-              <span className="font-semibold truncate max-w-[140px]">
-                {whatsAppStatus.displayPhone || 'WhatsApp Active'}
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+              <Smartphone size={14} className="text-emerald-800 shrink-0" />
+              <div className="flex flex-col text-left leading-tight hidden sm:flex">
+                <span className="font-bold text-gray-900 truncate max-w-[140px]">
+                  {whatsAppStatus.verifiedName || currentOrg?.name || 'Fancy Jewellers'}
+                </span>
+                <span className="text-[10px] font-mono text-gray-500 truncate max-w-[140px]">
+                  {whatsAppStatus.displayPhone || '+91 82408 88242'}
+                </span>
+              </div>
+              <span className="font-mono text-gray-700 sm:hidden">
+                {whatsAppStatus.displayPhone || '+91 82408 88242'}
               </span>
-              <span className="text-[10px] bg-[#D4AF37]/25 text-[#1E2B16] px-1.5 py-0.5 rounded font-bold hidden lg:inline">
-                {whatsAppStatus.qualityRating || 'Online'}
+              <span className="text-[10px] bg-emerald-700 text-white px-2 py-0.5 rounded-full font-bold hidden lg:inline tracking-wide">
+                Active
               </span>
             </div>
           ) : (

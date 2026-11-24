@@ -509,7 +509,7 @@ export default function SimpleDashboard() {
                         <Send size={15} />
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-gray-900 truncate max-w-[140px]">{c.name}</p>
+                        <p className="text-xs font-bold text-gray-900 truncate max-w-[140px]">{formatCampaignDisplayName(c.name)}</p>
                         <p className="text-[10px] text-gray-500">
                           {c.total_recipients ? `${c.total_recipients} recipients` : 'Broadcast'}
                         </p>

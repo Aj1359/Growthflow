@@ -165,6 +165,150 @@ export default function ProfileConnectorPage() {
         </div>
       </div>
 
+      {/* Pinned Meta / Facebook Business Shortcuts */}
+      <div className="card p-6 shadow-sm border border-[#D4AF37]/30 bg-gradient-to-br from-[#FAF8F2] to-white space-y-4">
+        <div className="flex items-center justify-between border-b border-[#D4AF37]/20 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-[#2E3E24] text-[#D4AF37] flex items-center justify-center font-bold">
+              <ExternalLink size={16} />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-gray-900">
+                Essential Meta & WhatsApp Business Shortcuts (Pinned)
+              </h2>
+              <p className="text-[11px] text-gray-500">
+                Direct one-click access to your Meta Business Manager, Templates, Display Name Review & Billing.
+              </p>
+            </div>
+          </div>
+          <span className="text-[10px] font-bold bg-[#D4AF37]/20 text-[#1E2B16] border border-[#D4AF37]/40 px-2.5 py-1 rounded-full uppercase tracking-wider">
+            Fancy Jewellers Shortcuts
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <a
+            href="https://business.facebook.com/wa/manage/phone-numbers/?waba_id=1079066378134206"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-3.5 bg-white rounded-xl border border-gray-200 hover:border-emerald-500 hover:shadow-sm transition group flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-center justify-between text-xs font-bold text-gray-900 group-hover:text-emerald-700">
+                <span>Display Name & Profile</span>
+                <ExternalLink size={13} className="text-gray-400 group-hover:text-emerald-600" />
+              </div>
+              <p className="text-[11px] text-gray-500 mt-1 leading-snug">
+                Review Display Name status ("Fancy Jewellers"), upload store logo, bio, address, and category.
+              </p>
+            </div>
+            <span className="mt-3 text-[10px] font-mono font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded w-fit">
+              Phone: +91 82408 88242
+            </span>
+          </a>
+
+          <a
+            href="https://business.facebook.com/wa/manage/message-templates/?waba_id=1079066378134206"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-3.5 bg-white rounded-xl border border-gray-200 hover:border-emerald-500 hover:shadow-sm transition group flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-center justify-between text-xs font-bold text-gray-900 group-hover:text-emerald-700">
+                <span>Message Templates</span>
+                <ExternalLink size={13} className="text-gray-400 group-hover:text-emerald-600" />
+              </div>
+              <p className="text-[11px] text-gray-500 mt-1 leading-snug">
+                Create & review WhatsApp marketing, utility, and festival templates on Meta Manager.
+              </p>
+            </div>
+            <span className="mt-3 text-[10px] font-mono font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded w-fit">
+              WABA: 1079066378134206
+            </span>
+          </a>
+
+          <a
+            href="https://business.facebook.com/billing_hub/payment_settings"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-3.5 bg-white rounded-xl border border-gray-200 hover:border-emerald-500 hover:shadow-sm transition group flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-center justify-between text-xs font-bold text-gray-900 group-hover:text-emerald-700">
+                <span>Billing & Payment Hub</span>
+                <ExternalLink size={13} className="text-gray-400 group-hover:text-emerald-600" />
+              </div>
+              <p className="text-[11px] text-gray-500 mt-1 leading-snug">
+                Manage payment methods (Mastercard 4776), view Meta invoices, balances, and credit line.
+              </p>
+            </div>
+            <span className="mt-3 text-[10px] font-mono font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded w-fit">
+              Card: Mastercard 4776
+            </span>
+          </a>
+
+          <a
+            href="https://business.facebook.com/wa/manage/home/?waba_id=1079066378134206"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-3.5 bg-white rounded-xl border border-gray-200 hover:border-emerald-500 hover:shadow-sm transition group flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-center justify-between text-xs font-bold text-gray-900 group-hover:text-emerald-700">
+                <span>WhatsApp Manager Overview</span>
+                <ExternalLink size={13} className="text-gray-400 group-hover:text-emerald-600" />
+              </div>
+              <p className="text-[11px] text-gray-500 mt-1 leading-snug">
+                Check daily messaging tiers, quality rating (GREEN), analytics, and phone number health.
+              </p>
+            </div>
+            <span className="mt-3 text-[10px] font-mono font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded w-fit">
+              Tier & Health Monitor
+            </span>
+          </a>
+
+          <a
+            href="https://developers.facebook.com/apps/1085025736630485/whatsapp-business/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-3.5 bg-white rounded-xl border border-gray-200 hover:border-emerald-500 hover:shadow-sm transition group flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-center justify-between text-xs font-bold text-gray-900 group-hover:text-emerald-700">
+                <span>Meta App Cloud API Setup</span>
+                <ExternalLink size={13} className="text-gray-400 group-hover:text-emerald-600" />
+              </div>
+              <p className="text-[11px] text-gray-500 mt-1 leading-snug">
+                API keys, permanent access token generator, and webhook subscription configuration.
+              </p>
+            </div>
+            <span className="mt-3 text-[10px] font-mono font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded w-fit">
+              App: 1085025736630485
+            </span>
+          </a>
+
+          <a
+            href="https://business.facebook.com/latest/home"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-3.5 bg-white rounded-xl border border-gray-200 hover:border-emerald-500 hover:shadow-sm transition group flex flex-col justify-between"
+          >
+            <div>
+              <div className="flex items-center justify-between text-xs font-bold text-gray-900 group-hover:text-emerald-700">
+                <span>Meta Business Suite</span>
+                <ExternalLink size={13} className="text-gray-400 group-hover:text-emerald-600" />
+              </div>
+              <p className="text-[11px] text-gray-500 mt-1 leading-snug">
+                Main Meta business dashboard for connected Facebook Page and Instagram accounts.
+              </p>
+            </div>
+            <span className="mt-3 text-[10px] font-mono font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded w-fit">
+              Meta Suite Home
+            </span>
+          </a>
+        </div>
+      </div>
+
       {/* Meta WhatsApp Connector (Form + Test Connection) */}
       <div className="card p-6 shadow-sm border-l-4 border-l-whatsapp-teal space-y-5">
         <div className="flex items-center justify-between border-b pb-3">
