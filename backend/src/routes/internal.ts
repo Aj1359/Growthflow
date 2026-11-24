@@ -193,6 +193,20 @@ const handleTick = async (req: Request, res: Response) => {
   }
 };
 
+router.get('/inspect', async (req: Request, res: Response) => {
+  let client;
+  try {
+    client = await pool.connect();
+    const msgs = await client.query('SELECT id, campaign_id, contact_id, status, error_code, error_message, wa_message_id, sent_at, failed_at FROM messages ORDER BY id DESC LIMIT 15');
+    const events = await client.query('SELECT id, org_id, payload, processed_at FROM webhook_events ORDER BY id DESC LIMIT 10');
+    return res.json({ messages: msgs.rows, webhook_events: events.rows });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  } finally {
+    if (client) client.release();
+  }
+});
+
 router.post('/tick', handleTick);
 router.get('/tick', handleTick);
 
