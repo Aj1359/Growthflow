@@ -143,6 +143,7 @@ export const api = {
       request<any>('/api/contacts/import', { method: 'POST', body: formData }, true),
     optOut: (id: string | number) => request<any>(`/api/contacts/${id}/opt-out`, { method: 'POST' }),
     delete: (id: string | number) => request<any>(`/api/contacts/${id}`, { method: 'DELETE' }),
+    clearAll: () => request<any>('/api/contacts/clear-all', { method: 'DELETE' }),
     lists: () => request<any[]>('/api/contacts/lists/all'),
     createList: (name: string) =>
       request<any>('/api/contacts/lists', { method: 'POST', body: JSON.stringify({ name }) }),

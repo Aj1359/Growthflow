@@ -13,7 +13,6 @@ export const growthflowBrand: BrandConfig = {
     { to: '/dashboard', label: 'Dashboard', icon: 'Home' },
     { to: '/customers', label: 'Contacts', icon: 'Users' },
     { to: '/posts', label: 'Templates', icon: 'FileText' },
-    { to: '/posts?tab=send', label: 'Send', icon: 'Send' },
     { to: '/replies', label: 'Replies', icon: 'MessageSquare' },
     { to: '/dashboard?tab=reports', label: 'Reports', icon: 'BarChart2' },
     { to: '/profile', label: 'Settings', icon: 'Settings' },

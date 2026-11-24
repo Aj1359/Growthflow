@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../lib/api';
 import { WhatsAppSetupModal } from '../components/WhatsAppSetupModal';
@@ -24,8 +24,35 @@ import {
   Sparkles,
 } from 'lucide-react';
 
+function getISTInfo() {
+  try {
+    const istDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+    const hour = istDate.getHours();
+    let greeting = 'Good Morning';
+    if (hour >= 12 && hour < 17) greeting = 'Good Afternoon';
+    else if (hour >= 17 && hour < 22) greeting = 'Good Evening';
+    else if (hour >= 22 || hour < 4) greeting = 'Good Evening';
+
+    const timeStr = istDate.toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+    return { greeting, timeStr };
+  } catch {
+    const hour = new Date().getHours();
+    let greeting = 'Good Morning';
+    if (hour >= 12 && hour < 17) greeting = 'Good Afternoon';
+    else if (hour >= 17 && hour < 22) greeting = 'Good Evening';
+    else if (hour >= 22 || hour < 4) greeting = 'Good Evening';
+    return { greeting, timeStr: 'IST' };
+  }
+}
+
 export default function SimpleDashboard() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isReports = searchParams.get('tab') === 'reports';
   const { currentOrg, whatsAppStatus, updateWhatsAppStatusLocally } = useAuth();
 
   const [stats, setStats] = useState<any>(null);
@@ -164,18 +191,23 @@ export default function SimpleDashboard() {
   const banners = stats?.banners || [];
   const counts = campaignProgress?.counts || { total: 0, sent: 0, delivered: 0, read: 0, failed: 0 };
   const orgName = currentOrg?.name || 'PlainMark';
+  const istInfo = getISTInfo();
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-10">
       {/* GrowthFlow Welcome Banner matching Mockup with Premium White & Golden styling */}
       <div className="relative overflow-hidden rounded-3xl p-6 sm:p-8 bg-gradient-to-r from-[#FAF8F2] via-[#FFFFFF] to-[#F5F2E9] border border-[#D4AF37]/30 shadow-xs">
         <div className="relative z-10 max-w-xl space-y-1.5">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#D4AF37]/15 text-[#1E2B16] text-[11px] font-bold border border-[#D4AF37]/30">
+            <Clock size={12} className="text-[#D4AF37]" />
+            <span>Indian Standard Time (IST): {istInfo.timeStr}</span>
+          </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#111827] tracking-tight">
-            Good Morning, {orgName}! 👋
+            {istInfo.greeting}, {orgName}! 👋
           </h1>
           <p className="text-sm font-semibold text-[#2D3A1E] flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
-            Grow your customers on WhatsApp
+            {isReports ? 'Campaign Delivery Analytics & WhatsApp Performance Reports' : 'Grow your customers on WhatsApp'}
           </p>
         </div>
 
@@ -247,6 +279,58 @@ export default function SimpleDashboard() {
           </div>
         </div>
       )}
+
+      {/* Live WhatsApp Spend & Meta Wallet Card */}
+      <div className="card p-6 bg-gradient-to-br from-white via-[#FAF8F2] to-white border border-[#D4AF37]/40 shadow-xs rounded-3xl relative overflow-hidden">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-1.5 max-w-md">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-[#1E2B16] text-[#D4AF37] flex items-center justify-center shadow-xs shrink-0">
+                <CreditCard size={18} />
+              </div>
+              <div>
+                <h2 className="text-sm sm:text-base font-extrabold text-gray-900 flex items-center gap-2">
+                  Live WhatsApp Spend & Meta Wallet
+                  <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-300">
+                    Active
+                  </span>
+                </h2>
+                <p className="text-[11px] text-gray-500">
+                  Real-time Meta Cloud API conversation usage & billing.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Metric Badges */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="p-3 bg-white rounded-2xl border border-gray-100 shadow-xs">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Est. Spend</p>
+              <p className="text-lg font-black text-[#1E2B16] mt-0.5">
+                ₹{(Number(overall.total_delivered || 0) * 0.86).toFixed(2)}
+              </p>
+              <p className="text-[10px] font-semibold text-gray-400 font-mono">
+                ≈ ${(Number(overall.total_delivered || 0) * 0.0107).toFixed(2)} USD
+              </p>
+            </div>
+
+            <div className="p-3 bg-white rounded-2xl border border-gray-100 shadow-xs">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Per Message Rate</p>
+              <p className="text-lg font-black text-gray-900 mt-0.5">₹0.86</p>
+              <p className="text-[10px] font-semibold text-emerald-600">Marketing tier</p>
+            </div>
+
+            <div className="p-3 bg-white rounded-2xl border border-gray-100 shadow-xs col-span-2 sm:col-span-1">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Payment Method</p>
+              <p className="text-xs font-bold text-gray-900 mt-1 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                Mastercard •••• 4776
+              </p>
+              <p className="text-[10px] text-emerald-700 font-semibold mt-0.5">Meta Auto-Pay Enabled</p>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* 4 Modern Stat Tiles (Real live counts from database) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

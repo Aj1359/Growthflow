@@ -405,6 +405,37 @@ router.post('/:id/opt-out', async (req: Request, res: Response) => {
   }
 });
 
+// ── DELETE /api/contacts/clear-all ──────────────────────────────────────────
+router.delete('/clear-all', async (req: Request, res: Response) => {
+  const orgId = getOrgId(req);
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+
+    // Clean up associated child records first for this org
+    await client.query(`DELETE FROM list_members WHERE contact_id IN (SELECT id FROM contacts WHERE org_id = $1)`, [orgId]);
+    await client.query(`DELETE FROM messages WHERE org_id = $1`, [orgId]);
+    await client.query(`DELETE FROM inbound_messages WHERE org_id = $1`, [orgId]);
+    await client.query(`DELETE FROM outbound_replies WHERE org_id = $1`, [orgId]);
+
+    const { rowCount } = await client.query(
+      `DELETE FROM contacts WHERE org_id = $1`,
+      [orgId]
+    );
+
+    await client.query('COMMIT');
+    return res.json({ data: { deleted: true, count: rowCount } });
+  } catch (err: any) {
+    if (client) await client.query('ROLLBACK');
+    return res.status(500).json({
+      error: { code: 'DATABASE_ERROR', message: err.message },
+    });
+  } finally {
+    if (client) client.release();
+  }
+});
+
 // ── DELETE /api/contacts/:id ──────────────────────────────────────────────────
 router.delete('/:id', async (req: Request, res: Response) => {
   const orgId = getOrgId(req);

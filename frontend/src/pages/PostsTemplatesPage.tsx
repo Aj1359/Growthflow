@@ -25,6 +25,28 @@ import {
   UserCheck,
   UserX,
 } from 'lucide-react';
+import { currentBrand } from '../brands';
+
+export function getCustomTemplateImages(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(`${currentBrand.id}-custom-template-images`);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveCustomTemplateImage(templateName: string, url: string) {
+  try {
+    const map = getCustomTemplateImages();
+    if (url && url.trim()) {
+      map[templateName] = url.trim();
+    } else {
+      delete map[templateName];
+    }
+    localStorage.setItem(`${currentBrand.id}-custom-template-images`, JSON.stringify(map));
+  } catch {}
+}
 
 interface MetaTemplate {
   name: string;
@@ -54,6 +76,13 @@ function formatTemplate(t: any, existingTemplates: MetaTemplate[] = []): MetaTem
   const existing = existingTemplates.find((cur) => cur.name === t.name);
   const normalizedStatus = (t.status || 'APPROVED').toUpperCase();
 
+  const customMap = getCustomTemplateImages();
+  const customSavedUrl = customMap[t.name];
+  const metaSampleUrl = headerComp?.example?.header_handle?.[0] || headerComp?.example?.header_url?.[0];
+  const defaultPlaceholder = 'https://images.unsplash.com/photo-1579208575657-c595a05383b7?w=800';
+
+  const resolvedHeaderUrl = customSavedUrl || existing?.header_url || t.header_url || (headerType === 'image' ? (metaSampleUrl || defaultPlaceholder) : undefined);
+
   return {
     id: String(t.id || ''),
     name: t.name,
@@ -62,7 +91,7 @@ function formatTemplate(t: any, existingTemplates: MetaTemplate[] = []): MetaTem
     status: normalizedStatus,
     body: bodyText || t.body || `Meta template: ${t.name}`,
     header_type: headerType,
-    header_url: existing?.header_url || t.header_url || (headerType === 'image' ? 'https://images.unsplash.com/photo-1579208575657-c595a05383b7?w=800' : undefined),
+    header_url: resolvedHeaderUrl,
     components: t.components || [],
   };
 }
@@ -78,8 +107,6 @@ interface BroadcastHistory {
   error_message?: string;
   status: 'sent' | 'scheduled' | 'failed';
 }
-
-import { currentBrand } from '../brands';
 
 export default function PostsTemplatesPage() {
   const navigate = useNavigate();
@@ -504,6 +531,7 @@ export default function PostsTemplatesPage() {
           template={editImageTemplate}
           onClose={() => setEditImageTemplate(null)}
           onSaved={(newUrl) => {
+            saveCustomTemplateImage(editImageTemplate.name, newUrl);
             const updated = templates.map((tmpl) =>
               tmpl.name === editImageTemplate.name ? { ...tmpl, header_url: newUrl || undefined } : tmpl
             );
@@ -786,7 +814,10 @@ function BroadcastModal({
   onDispatched: (summary: { total: number; sent: number; failed: number; error?: string; recipients?: any[] }) => void;
 }) {
   const [loading, setLoading] = useState(false);
-  const [headerImageUrl, setHeaderImageUrl] = useState(template.header_url || '');
+  const [headerImageUrl, setHeaderImageUrl] = useState(() => {
+    const customMap = getCustomTemplateImages();
+    return customMap[template.name] || template.header_url || '';
+  });
   const [error, setError] = useState<string | null>(null);
 
   // Search, filter tabs & pagination limit
@@ -904,6 +935,7 @@ function BroadcastModal({
       fd.append('contact_ids', JSON.stringify(Array.from(selectedIds)));
 
       if (headerImageUrl && template.header_type === 'image') {
+        saveCustomTemplateImage(template.name, headerImageUrl);
         fd.append('header_image_url', headerImageUrl);
       }
 
@@ -1327,7 +1359,7 @@ function EditImageModal({
             <button
               type="button"
               onClick={() => onSaved(url.trim())}
-              disabled={!url.trim() || imgError}
+              disabled={!url.trim()}
               className="btn-primary text-xs flex items-center gap-1.5 disabled:opacity-50"
             >
               Save New Picture

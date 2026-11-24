@@ -84,7 +84,15 @@ export default function CustomersPage() {
   };
 
   const handleClearAll = () => {
-    alert('Bulk deletion is disabled in multi-tenant mode to protect customer data.');
+    if (contacts.length === 0 && totalCount === 0) return;
+    if (window.confirm('Are you sure you want to delete ALL customer contacts? This will clear all customer records and cannot be undone.')) {
+      api.contacts.clearAll().then((res) => {
+        refreshList();
+        showToast(`Successfully cleared all contacts (${res.data?.count ?? 0} records deleted)`);
+      }).catch((err) => {
+        alert(err.message || 'Failed to clear contacts');
+      });
+    }
   };
 
   return (
