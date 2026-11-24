@@ -246,13 +246,13 @@ const handleWebhookPost = async (req: Request, res: Response) => {
               } else if (msg.interactive?.list_reply?.title) {
                 bodyText = msg.interactive.list_reply.title;
               } else if (msg.image) {
-                bodyText = '[image]';
+                bodyText = msg.image.caption?.trim() || '[image]';
                 mediaJson = msg.image;
               } else if (msg.video) {
-                bodyText = '[video]';
+                bodyText = msg.video.caption?.trim() || '[video]';
                 mediaJson = msg.video;
               } else if (msg.document) {
-                bodyText = '[document]';
+                bodyText = msg.document.caption?.trim() || msg.document.filename?.trim() || '[document]';
                 mediaJson = msg.document;
               } else if (msg.audio) {
                 bodyText = '[audio]';

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { api, API_BASE } from '../lib/api';
 import {
   MessageSquare,
@@ -19,6 +19,17 @@ import {
   X,
 } from 'lucide-react';
 
+interface ConversationGroup {
+  contact_id: number;
+  contact_name: string;
+  from_e164: string;
+  last_message: string;
+  last_received_at: string;
+  unhandled_count: number;
+  matched_campaign_name?: string;
+  is_stop?: boolean;
+}
+
 export default function RepliesChatPage() {
   const [inquiries, setInquiries] = useState<any[]>([]);
   const [selectedContactId, setSelectedContactId] = useState<number | null>(null);
@@ -31,6 +42,55 @@ export default function RepliesChatPage() {
   const [filter, setFilter] = useState<'all' | 'unhandled'>('unhandled');
   const [search, setSearch] = useState('');
   const [notification, setNotification] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+
+  // Group inquiries by contact so each person has only ONE chat thread
+  const conversations: ConversationGroup[] = useMemo(() => {
+    const map = new Map<number | string, ConversationGroup>();
+    for (const inq of inquiries) {
+      const key = inq.contact_id || inq.from_e164;
+      if (!key) continue;
+      const isUnhandled = !inq.handled;
+      const existing = map.get(key);
+      if (!existing) {
+        map.set(key, {
+          contact_id: inq.contact_id,
+          contact_name: inq.contact_name || inq.from_e164,
+          from_e164: inq.from_e164,
+          last_message: inq.body,
+          last_received_at: inq.received_at,
+          unhandled_count: isUnhandled ? 1 : 0,
+          matched_campaign_name: inq.matched_campaign_name,
+          is_stop: inq.is_stop,
+        });
+      } else {
+        if (isUnhandled) {
+          existing.unhandled_count += 1;
+        }
+        if (new Date(inq.received_at) > new Date(existing.last_received_at)) {
+          existing.last_message = inq.body;
+          existing.last_received_at = inq.received_at;
+          if (inq.matched_campaign_name) existing.matched_campaign_name = inq.matched_campaign_name;
+        }
+      }
+    }
+    return Array.from(map.values()).sort(
+      (a, b) => new Date(b.last_received_at).getTime() - new Date(a.last_received_at).getTime()
+    );
+  }, [inquiries]);
+
+  const filteredConversations = useMemo(() => {
+    return conversations.filter((c) => {
+      if (filter === 'unhandled' && c.unhandled_count === 0) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const name = (c.contact_name || '').toLowerCase();
+        const phone = (c.from_e164 || '').toLowerCase();
+        const body = (c.last_message || '').toLowerCase();
+        return name.includes(q) || phone.includes(q) || body.includes(q);
+      }
+      return true;
+    });
+  }, [conversations, filter, search]);
 
   // 1. Fetch Inquiries List
   const fetchInquiries = async () => {
@@ -221,44 +281,51 @@ export default function RepliesChatPage() {
                 filter === 'all' ? 'bg-emerald-900 text-white' : 'bg-gray-200 text-gray-700'
               }`}
             >
-              All Inquiries ({inquiries.length})
+              All Chats ({conversations.length})
             </button>
           </div>
         </div>
 
-        {/* Conversations Scroll Area */}
+        {/* Conversations Scroll Area - One thread per contact */}
         <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
           {loading ? (
             <div className="p-8 text-center text-xs text-gray-500">Loading customer threads...</div>
-          ) : filteredInquiries.length === 0 ? (
-            <div className="p-8 text-center text-xs text-gray-400">No customer replies in this filter.</div>
+          ) : filteredConversations.length === 0 ? (
+            <div className="p-8 text-center text-xs text-gray-400">No customer conversations in this filter.</div>
           ) : (
-            filteredInquiries.map((inq) => {
-              const isSelected = inq.contact_id === selectedContactId;
+            filteredConversations.map((c) => {
+              const isSelected = c.contact_id === selectedContactId;
               return (
                 <div
-                  key={inq.id}
-                  onClick={() => inq.contact_id && setSelectedContactId(inq.contact_id)}
+                  key={c.contact_id || c.from_e164}
+                  onClick={() => c.contact_id && setSelectedContactId(c.contact_id)}
                   className={`p-3.5 cursor-pointer transition flex flex-col gap-1 ${
                     isSelected ? 'bg-emerald-50/80 border-l-4 border-l-emerald-800' : 'hover:bg-white bg-transparent'
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-gray-900 truncate">
-                      {inq.contact_name || inq.from_e164}
+                      {c.contact_name}
                     </span>
                     <span className="text-[10px] text-gray-400 font-mono">
-                      {new Date(inq.received_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(c.last_received_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
 
-                  <p className="text-xs text-gray-600 line-clamp-2">{inq.body}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs text-gray-600 line-clamp-1 flex-1">{c.last_message}</p>
+                    {c.unhandled_count > 0 && (
+                      <span className="shrink-0 text-[10px] bg-rose-600 text-white font-black px-1.5 py-0.5 rounded-full">
+                        {c.unhandled_count}
+                      </span>
+                    )}
+                  </div>
 
                   <div className="flex items-center justify-between mt-1 pt-1">
-                    <span className="text-[10px] font-mono text-gray-500">{inq.from_e164}</span>
-                    {inq.matched_campaign_name && (
-                      <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-100 px-1.5 py-0.2 rounded truncate max-w-[120px]">
-                        Re: {inq.matched_campaign_name}
+                    <span className="text-[10px] font-mono text-gray-500">{c.from_e164}</span>
+                    {c.matched_campaign_name && (
+                      <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded truncate max-w-[120px]">
+                        Re: {c.matched_campaign_name}
                       </span>
                     )}
                   </div>
@@ -305,13 +372,23 @@ export default function RepliesChatPage() {
               ) : (
                 threadData.thread?.map((item: any, idx: number) => {
                   const isInbound = item.direction === 'inbound';
+                  let mediaObj: any = null;
+                  if (item.media) {
+                    try {
+                      mediaObj = typeof item.media === 'string' ? JSON.parse(item.media) : item.media;
+                    } catch {}
+                  }
+                  const hasMedia = !!mediaObj?.id;
+                  const isImage = (mediaObj?.mime_type && mediaObj.mime_type.startsWith('image/')) || (hasMedia && (item.body === '[image]' || !mediaObj?.mime_type));
+                  const isDoc = mediaObj?.mime_type && (mediaObj.mime_type.includes('pdf') || mediaObj.mime_type.includes('document'));
+
                   return (
                     <div
                       key={idx}
                       className={`flex flex-col ${isInbound ? 'items-start' : 'items-end'}`}
                     >
                       <div
-                        className={`max-w-lg rounded-2xl p-3.5 shadow-sm text-xs space-y-1 ${
+                        className={`max-w-lg rounded-2xl p-3.5 shadow-sm text-xs space-y-1.5 ${
                           isInbound
                             ? 'bg-white text-gray-900 border border-gray-200 rounded-tl-none'
                             : 'bg-emerald-900 text-white rounded-tr-none'
@@ -322,7 +399,36 @@ export default function RepliesChatPage() {
                             📢 Broadcast Template Sent
                           </span>
                         )}
-                        <p className="whitespace-pre-wrap">{item.body}</p>
+
+                        {/* Customer Received Image Preview */}
+                        {hasMedia && isImage && (
+                          <div className="rounded-xl overflow-hidden my-1 max-w-xs border border-gray-200/80 shadow-xs bg-black/5">
+                            <img
+                              src={`${API_BASE}/api/replies/media/${mediaObj.id}`}
+                              alt="Received Customer Image"
+                              className="w-full h-auto max-h-72 object-cover cursor-pointer hover:opacity-95 transition"
+                              onClick={() => window.open(`${API_BASE}/api/replies/media/${mediaObj.id}`, '_blank')}
+                            />
+                          </div>
+                        )}
+
+                        {/* Customer Document Preview */}
+                        {hasMedia && isDoc && (
+                          <a
+                            href={`${API_BASE}/api/replies/media/${mediaObj.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center gap-2 p-2 my-1 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-semibold transition"
+                          >
+                            <FileText size={16} className="text-emerald-700 shrink-0" />
+                            <span className="truncate">{mediaObj.filename || 'View Attached File'}</span>
+                          </a>
+                        )}
+
+                        {item.body && item.body !== '[image]' && item.body !== '[video]' && item.body !== '[document]' && (
+                          <p className="whitespace-pre-wrap">{item.body}</p>
+                        )}
+
                         <span
                           className={`text-[10px] block text-right font-mono ${
                             isInbound ? 'text-gray-400' : 'text-emerald-200'

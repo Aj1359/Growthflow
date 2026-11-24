@@ -49,6 +49,13 @@ function getISTInfo() {
   }
 }
 
+function formatCampaignDisplayName(name: string): string {
+  if (!name) return 'Campaign';
+  let clean = name.replace(/^(Broadcast|Test)\s*-\s*/i, '').trim();
+  clean = clean.replace(/_hx[a-f0-9]{20,}/i, '');
+  return clean || name;
+}
+
 export default function SimpleDashboard() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -588,7 +595,7 @@ export default function SimpleDashboard() {
                   : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-200'
               }`}
             >
-              <span>{camp.name}</span>
+              <span>{formatCampaignDisplayName(camp.name)}</span>
               <span
                 className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
                   camp.status === 'running'
@@ -612,7 +619,7 @@ export default function SimpleDashboard() {
             <div>
               <div className="flex items-center gap-3">
                 <h3 className="text-base font-black text-gray-900">
-                  {campaignProgress.campaign?.name}
+                  {formatCampaignDisplayName(campaignProgress.campaign?.name)}
                 </h3>
                 <span className="text-xs font-bold px-2.5 py-0.5 rounded-full uppercase bg-emerald-100 text-emerald-900">
                   Status: {campaignProgress.campaign?.status}

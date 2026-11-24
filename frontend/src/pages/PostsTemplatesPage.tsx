@@ -928,7 +928,7 @@ function BroadcastModal({
 
     try {
       const fd = new FormData();
-      fd.append('name', `Broadcast - ${template.name}`);
+      fd.append('name', template.name);
       fd.append('template_id', String((template as any).id || 1));
 
       // Pass only the chosen recipient contact IDs

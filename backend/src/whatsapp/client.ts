@@ -138,6 +138,26 @@ export class WhatsAppClient {
   }
 
   /**
+   * 4c. getMediaUrl
+   * GET /{media-id}
+   * Retrieves media metadata (download URL) from Meta Cloud API
+   */
+  async getMediaUrl(mediaId: string, token: string) {
+    const url = `${this.base}/${mediaId}`;
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    const data: any = await res.json();
+    if (!res.ok) {
+      throw new Error(data?.error?.message || 'Failed to retrieve media URL from Meta');
+    }
+    return data as { id: string; url: string; mime_type: string; sha256: string; file_size: number };
+  }
+
+  /**
    * 5. createTemplate
    * POST /{waba-id}/message_templates
    * Used by: Template submit

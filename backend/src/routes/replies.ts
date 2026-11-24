@@ -7,6 +7,7 @@ import { decryptToken } from '../lib/crypto.js';
 import { env } from '../config/env.js';
 import { requireAuth } from '../middleware/auth.js';
 import { getOrgId } from './settings.js';
+import { logger } from '../config/logger.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -301,6 +302,57 @@ router.get('/forwards/log', async (req: Request, res: Response) => {
     return res.json({ data: rows });
   } catch (err: any) {
     return res.status(500).json({ error: { code: 'DATABASE_ERROR', message: err.message } });
+  } finally {
+    if (client) client.release();
+  }
+});
+
+/**
+ * GET /api/replies/media/:mediaId
+ * Proxies media binary from Meta Cloud API
+ */
+router.get('/media/:mediaId', async (req: Request, res: Response) => {
+  let orgId: string;
+  try {
+    orgId = getOrgId(req);
+  } catch {
+    orgId = (req.query.org_id as string) || '00000000-0000-0000-0000-000000000001';
+  }
+  const { mediaId } = req.params;
+  let client;
+  try {
+    client = await pool.connect();
+    const { rows: accRows } = await client.query(
+      `SELECT token_encrypted FROM whatsapp_accounts WHERE org_id = $1 LIMIT 1`,
+      [orgId]
+    );
+    if (accRows.length === 0) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'WhatsApp account not configured' } });
+    }
+    const token = decryptToken(accRows[0].token_encrypted, env.ENCRYPTION_KEY);
+    const mediaMeta = await waClient.getMediaUrl(mediaId, token);
+    if (!mediaMeta?.url) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Media URL not found on Meta' } });
+    }
+
+    const metaRes = await fetch(mediaMeta.url, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!metaRes.ok) {
+      return res.status(metaRes.status).send('Failed to fetch media binary from Meta');
+    }
+
+    const contentType = mediaMeta.mime_type || metaRes.headers.get('content-type') || 'application/octet-stream';
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    const arrayBuffer = await metaRes.arrayBuffer();
+    return res.send(Buffer.from(arrayBuffer));
+  } catch (err: any) {
+    logger.error({ err: err.message, mediaId }, 'Failed proxying media from Meta');
+    return res.status(500).json({ error: { code: 'MEDIA_PROXY_ERROR', message: err.message } });
   } finally {
     if (client) client.release();
   }
