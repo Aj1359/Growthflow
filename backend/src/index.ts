@@ -13,8 +13,10 @@ app.listen(PORT, async () => {
   // Ensure all existing active contacts have opt-in confirmed so they are broadcastable
   try {
     await pool.query("UPDATE contacts SET opt_in_confirmed_at = NOW() WHERE opt_in_confirmed_at IS NULL");
+    await pool.query("UPDATE templates SET language = 'en_US' WHERE name LIKE '%durga_puja%'");
+    await pool.query("UPDATE templates SET language = 'en_IN' WHERE name = 'fancy_new_test'");
   } catch (err: any) {
-    console.warn('Opt-in backfill warning:', err.message);
+    console.warn('Opt-in/template backfill warning:', err.message);
   }
 
   startSendingWorker();

@@ -195,7 +195,7 @@ export async function processSendingBatch(): Promise<number> {
       }
 
       // Send Template via WhatsApp Cloud API
-      const result = await waClient.sendTemplate(
+      let result = await waClient.sendTemplate(
         msg.phone_number_id,
         token,
         msg.whatsapp_e164,
@@ -203,6 +203,19 @@ export async function processSendingBatch(): Promise<number> {
         msg.template_language || 'en',
         components
       );
+
+      // Auto-retry with language fallback if translation missing (#132001)
+      if (!result.success && Number(result.error?.code) === 132001) {
+        const fallbackLang = (msg.template_language === 'en_US' || msg.template_language === 'en_IN') ? 'en' : 'en_US';
+        result = await waClient.sendTemplate(
+          msg.phone_number_id,
+          token,
+          msg.whatsapp_e164,
+          msg.template_name,
+          fallbackLang,
+          components
+        );
+      }
 
       if (result.success && result.wa_message_id) {
         await client.query(`
