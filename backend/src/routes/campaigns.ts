@@ -275,7 +275,7 @@ router.post('/', upload.any(), async (req: Request, res: Response) => {
       }
     } else if (header_image_url && typeof header_image_url === 'string' && header_image_url.trim()) {
       mediaId = header_image_url.trim();
-    } else if (template.header_type === 'image') {
+    } else if (['image', 'video', 'document'].includes((template.header_type || '').toLowerCase())) {
       const headerComp = (template.components || []).find((c: any) => c.type === 'HEADER');
       const handle = headerComp?.example?.header_handle?.[0];
       if (handle) {

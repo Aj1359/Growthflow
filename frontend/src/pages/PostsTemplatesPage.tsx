@@ -719,6 +719,11 @@ function TestSendModal({
       const fd = new FormData();
       fd.append('name', `Test - ${template.name}`);
       fd.append('template_id', String((template as any).id || 1));
+      const customMap = getCustomTemplateImages();
+      const resolvedMediaUrl = customMap[template.name] || template.header_url;
+      if (resolvedMediaUrl && ['image', 'video', 'document'].includes(template.header_type || '')) {
+        fd.append('header_image_url', resolvedMediaUrl);
+      }
       const res = await api.campaigns.create(fd);
       onSent(res);
     } catch (err: any) {
@@ -934,7 +939,7 @@ function BroadcastModal({
       // Pass only the chosen recipient contact IDs
       fd.append('contact_ids', JSON.stringify(Array.from(selectedIds)));
 
-      if (headerImageUrl && template.header_type === 'image') {
+      if (headerImageUrl && ['image', 'video', 'document'].includes(template.header_type || '')) {
         saveCustomTemplateImage(template.name, headerImageUrl);
         fd.append('header_image_url', headerImageUrl);
       }
